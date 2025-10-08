@@ -1,6 +1,7 @@
 """
 Pronunciation analysis service using Claude API.
 Generates accurate IPA and Macquarie Dictionary phonetic notation for names.
+Railway deployment ready.
 """
 
 from typing import Optional, Dict, Any
