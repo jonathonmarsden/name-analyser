@@ -11,6 +11,7 @@ sys.path.insert(0, str(backend_path))
 
 # Import the FastAPI app
 from api.main import app
+from mangum import Mangum
 
-# Export the app for Vercel
-app = app
+# Wrap FastAPI with Mangum for serverless compatibility
+handler = Mangum(app, lifespan="off")
