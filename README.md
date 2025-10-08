@@ -62,13 +62,24 @@ Unlike traditional script-based detection, this system **analyzes name etymology
 - **React with TypeScript** - Type-safe component architecture
 - **Vite** - Fast development and build tooling
 - **Tailwind CSS** - Vercel design system styling
+- **Accessibility**: ARIA labels, live regions, keyboard navigation
 - **Deployed on Vercel** - [names.jonathonmarsden.com](https://names.jonathonmarsden.com)
 
 ### Backend
 - **Python FastAPI** - High-performance async API framework
 - **Anthropic Claude 3.5 Sonnet** - Etymology analysis and pronunciation generation
+- **slowapi** - Rate limiting (10 requests/minute per IP)
 - **Unicode-based script detection** - Fallback for non-Latin scripts
+- **Structured logging** - Production-ready error tracking
 - **Deployed on Railway** - Free tier with automatic deployments
+
+### Security Features
+- ✅ Rate limiting to prevent API abuse
+- ✅ Input validation (length limits, special character filtering)
+- ✅ CORS configuration with regex pattern matching
+- ✅ Secure error handling (no information disclosure)
+- ✅ Request timeouts (30-second frontend timeout)
+- ✅ Proper logging for debugging without exposing sensitive data
 
 ### Key Architecture Decisions
 
