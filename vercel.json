@@ -9,14 +9,14 @@
       }
     },
     {
-      "src": "api/*.py",
+      "src": "api/analyse.py",
       "use": "@vercel/python"
     }
   ],
   "routes": [
     {
-      "src": "/api/(.*)",
-      "dest": "/api/index.py"
+      "src": "/api/analyse",
+      "dest": "/api/analyse.py"
     },
     {
       "src": "/(.*)",
