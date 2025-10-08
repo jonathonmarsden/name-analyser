@@ -67,7 +67,7 @@ export default function NameInput({ onAnalyse, loading }: NameInputProps) {
 
   return (
     <div className="bg-white rounded-lg shadow-lg p-8">
-      <form onSubmit={handleSubmit} className="space-y-4">
+      <form onSubmit={handleSubmit} className="space-y-4" role="search">
         <div>
           <label
             htmlFor="name-input"
@@ -84,6 +84,9 @@ export default function NameInput({ onAnalyse, loading }: NameInputProps) {
             className="w-full px-4 py-3 text-lg border border-vercel-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-vercel-black focus:border-transparent bg-white text-black"
             disabled={loading}
             autoFocus
+            aria-label="Name to analyze"
+            aria-required="true"
+            aria-busy={loading}
           />
         </div>
 
@@ -91,6 +94,7 @@ export default function NameInput({ onAnalyse, loading }: NameInputProps) {
           type="submit"
           disabled={loading || !name.trim()}
           className="w-full bg-vercel-black text-white py-3 px-6 rounded-lg font-medium hover:bg-vercel-gray-800 disabled:bg-vercel-gray-300 disabled:cursor-not-allowed transition-colors duration-200"
+          aria-label={loading ? 'Analyzing name' : 'Analyze name'}
         >
           {loading ? 'Analysing...' : 'Analyse Name'}
         </button>

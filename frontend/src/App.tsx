@@ -8,9 +8,14 @@ export interface AnalysisResult {
   ipa: string
   macquarie: string
   pronunciation_guidance: string
-  confidence: number
+  confidence?: number  // Backend sends this but we don't display it
   language_info: {
-    family_name_first: boolean
+    family_name_first?: boolean
+    note?: string
+  }
+  romanization_system?: string
+  tone_marks_added?: boolean
+  ambiguity?: {
     note: string
   }
 }
@@ -24,6 +29,10 @@ function App() {
     setLoading(true)
     setError(null)
 
+    // Create abort controller with 30 second timeout
+    const controller = new AbortController()
+    const timeoutId = setTimeout(() => controller.abort(), 30000)
+
     try {
       // Use environment variable for API URL, fallback to relative path
       const apiUrl = import.meta.env.VITE_API_URL || '/api'
@@ -33,17 +42,33 @@ function App() {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({ name }),
+        signal: controller.signal,
       })
 
+      clearTimeout(timeoutId)
+
       if (!response.ok) {
-        throw new Error('Failed to analyse name')
+        let errorMessage = 'Failed to analyse name'
+        try {
+          const errorData = await response.json()
+          // FastAPI returns {detail: "error message"}
+          errorMessage = errorData.detail || errorMessage
+        } catch {
+          // If JSON parsing fails, use default message
+        }
+        throw new Error(errorMessage)
       }
 
       const data = await response.json()
       setResult(data)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'An error occurred')
+      if (err instanceof Error && err.name === 'AbortError') {
+        setError('Request timed out. Please try again.')
+      } else {
+        setError(err instanceof Error ? err.message : 'An error occurred')
+      }
     } finally {
+      clearTimeout(timeoutId)
       setLoading(false)
     }
   }
@@ -61,12 +86,20 @@ function App() {
           <NameInput onAnalyse={handleAnalyse} loading={loading} />
 
           {error && (
-            <div className="mt-6 p-4 bg-red-50 border border-red-200 rounded-lg">
+            <div
+              className="mt-6 p-4 bg-red-50 border border-red-200 rounded-lg"
+              role="alert"
+              aria-live="assertive"
+            >
               <p className="text-red-800">{error}</p>
             </div>
           )}
 
-          {result && <ResultsDisplay result={result} />}
+          {result && (
+            <div aria-live="polite" aria-atomic="true">
+              <ResultsDisplay result={result} />
+            </div>
+          )}
         </div>
       </div>
     </div>
