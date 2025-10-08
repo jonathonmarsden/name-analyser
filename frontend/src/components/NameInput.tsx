@@ -80,7 +80,7 @@ export default function NameInput({ onAnalyse, loading }: NameInputProps) {
             type="text"
             value={name}
             onChange={(e) => setName(e.target.value)}
-            placeholder="e.g., 张伟, Nguyễn Văn An, Smith"
+            placeholder="for example: 张伟, Nguyễn Văn An, Marsden"
             className="w-full px-4 py-3 text-lg border border-vercel-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-vercel-black focus:border-transparent"
             disabled={loading}
             autoFocus
@@ -96,8 +96,8 @@ export default function NameInput({ onAnalyse, loading }: NameInputProps) {
         </button>
       </form>
 
-      <div className="mt-6 text-sm text-vercel-gray-500">
-        <p className="text-center">
+      <div className="mt-6 text-sm">
+        <p className="text-center text-vercel-gray-600">
           Try:{' '}
           <button
             type="button"
@@ -106,13 +106,13 @@ export default function NameInput({ onAnalyse, loading }: NameInputProps) {
               setName(examples[currentExample])
             }}
             disabled={loading}
-            className="font-medium text-vercel-gray-700 hover:text-vercel-black transition-colors disabled:opacity-50 disabled:cursor-not-allowed inline-flex items-center gap-1"
+            className="font-semibold text-vercel-black hover:text-blue-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed inline-flex items-center gap-1 px-2 py-1 rounded hover:bg-vercel-gray-100"
             title="Click to use this example"
           >
-            <span className="transition-opacity duration-300">
+            <span className="transition-opacity duration-300 text-lg">
               {(isMobile ? MOBILE_EXAMPLES : EXAMPLE_NAMES)[currentExample]}
             </span>
-            <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
             </svg>
           </button>
