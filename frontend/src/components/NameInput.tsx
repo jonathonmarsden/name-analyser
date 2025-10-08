@@ -81,7 +81,7 @@ export default function NameInput({ onAnalyse, loading }: NameInputProps) {
             value={name}
             onChange={(e) => setName(e.target.value)}
             placeholder="for example: 张伟, Nguyễn Văn An, Marsden"
-            className="w-full px-4 py-3 text-lg border border-vercel-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-vercel-black focus:border-transparent"
+            className="w-full px-4 py-3 text-lg border border-vercel-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-vercel-black focus:border-transparent bg-white text-black"
             disabled={loading}
             autoFocus
           />
@@ -106,7 +106,7 @@ export default function NameInput({ onAnalyse, loading }: NameInputProps) {
               setName(examples[currentExample])
             }}
             disabled={loading}
-            className="font-semibold text-vercel-black hover:text-blue-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed inline-flex items-center gap-1 px-2 py-1 rounded hover:bg-vercel-gray-100"
+            className="font-semibold text-vercel-gray-500 hover:text-blue-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed inline-flex items-center gap-1 px-2 py-1 rounded hover:bg-vercel-gray-100"
             title="Click to use this example"
           >
             <span className="transition-opacity duration-300 text-lg">

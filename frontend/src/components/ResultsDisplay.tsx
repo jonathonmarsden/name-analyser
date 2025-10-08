@@ -83,19 +83,6 @@ export default function ResultsDisplay({ result }: ResultsDisplayProps) {
           </div>
         )}
 
-        {/* Cultural Context */}
-        {result.language_info && result.language_info.note && (
-          <div>
-            <h3 className="text-sm font-medium text-vercel-gray-600 mb-2">
-              Cultural Context
-            </h3>
-            <div className="bg-purple-50 rounded-lg p-4">
-              <p className="text-base text-vercel-gray-800">
-                {result.language_info.note}
-              </p>
-            </div>
-          </div>
-        )}
       </div>
     </div>
   )
