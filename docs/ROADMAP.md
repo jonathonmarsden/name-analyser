@@ -24,6 +24,16 @@
 - ✅ **Context-aware ambiguity resolution** - Uses surname context to infer pronunciation
 - ✅ **Enhanced API response** - Added `romanization_system`, `tone_marks_added`, `ambiguity` fields
 
+### Security & Quality Improvements (2025-10-09)
+- ✅ **Rate limiting** - 10 requests/minute per IP using slowapi
+- ✅ **Input validation** - Length limits (200 chars) and special character filtering
+- ✅ **CORS security** - Fixed with `allow_origin_regex` for Vercel deployments
+- ✅ **Secure error handling** - Generic error messages to prevent information disclosure
+- ✅ **Structured logging** - Replaced print statements with proper logging
+- ✅ **Request timeouts** - 30-second frontend timeout for API requests
+- ✅ **Accessibility** - ARIA labels, live regions, keyboard navigation
+- ✅ **UI improvements** - Removed confidence estimate, rotating poet examples
+
 ---
 
 ## Version 1.5 📋 (Planned - Audio Enhancement)
@@ -178,10 +188,12 @@
 ## Technical Debt & Improvements
 
 ### High Priority
-- [ ] Add rate limiting (prevent API abuse)
-- [ ] Implement proper logging (replace `print()` statements)
-- [ ] Add request size/length limits
-- [ ] Fix CORS wildcard issue (Railway deployment)
+- [x] Add rate limiting (prevent API abuse) - ✅ Completed 2025-10-09
+- [x] Implement proper logging (replace `print()` statements) - ✅ Completed 2025-10-09
+- [x] Add request size/length limits - ✅ Completed 2025-10-09
+- [x] Fix CORS wildcard issue (Railway deployment) - ✅ Completed 2025-10-09
+- [ ] Add unit test suite (pytest for backend, Vitest for frontend)
+- [ ] Implement caching (Redis or in-memory LRU cache)
 
 ### Medium Priority
 - [ ] Create unit test suite (pytest)
