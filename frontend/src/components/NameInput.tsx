@@ -1,12 +1,62 @@
-import { useState, FormEvent } from 'react'
+import { useState, FormEvent, useEffect } from 'react'
 
 interface NameInputProps {
   onAnalyse: (name: string) => void
   loading: boolean
 }
 
+// Celebrated poets from diverse cultures - showcasing the app's capabilities
+const EXAMPLE_NAMES = [
+  '北岛', // Bei Dao - Chinese
+  'Xuân Quỳnh', // Vietnamese with tones
+  'محمود درويش', // Mahmoud Darwish - Arabic (Palestinian)
+  'نازك الملائكة', // Nazik al-Malaika - Arabic (Iraqi)
+  'אַבֿרהם סוצקעווער', // Abraham Sutzkever - Yiddish
+  'রবীন্দ্রনাথ ঠাকুর', // Rabindranath Tagore - Bengali
+  '与謝野晶子', // Yosano Akiko - Japanese
+  'சுப்ரமணிய பாரதி', // Subramania Bharati - Tamil
+  'Wole Soyinka', // Yoruba/English (Nigeria)
+  'สุนทรภู่', // Sunthorn Phu - Thai
+  'ጸጋዬ ገብረ መድኅን', // Tsegaye Gabre-Medhin - Amharic/Ge'ez
+  'Анна Ахматова', // Anna Akhmatova - Russian
+  '김소월', // Kim Sowol - Korean
+  'Judith Wright', // English (Australia)
+]
+
+// Mobile-optimized subset (8 examples)
+const MOBILE_EXAMPLES = [
+  '北岛',
+  'Xuân Quỳnh',
+  'محمود درويش',
+  'نازك الملائكة',
+  'אַבֿרהם סוצקעווער',
+  'রবীন্দ্রনাথ ঠাকুর',
+  'Wole Soyinka',
+  '与謝野晶子',
+]
+
 export default function NameInput({ onAnalyse, loading }: NameInputProps) {
   const [name, setName] = useState('')
+  const [currentExample, setCurrentExample] = useState(0)
+  const [isMobile, setIsMobile] = useState(false)
+
+  // Detect mobile screen size
+  useEffect(() => {
+    const checkMobile = () => setIsMobile(window.innerWidth < 768)
+    checkMobile()
+    window.addEventListener('resize', checkMobile)
+    return () => window.removeEventListener('resize', checkMobile)
+  }, [])
+
+  // Rotate examples
+  useEffect(() => {
+    const examples = isMobile ? MOBILE_EXAMPLES : EXAMPLE_NAMES
+    const interval = setInterval(() => {
+      setCurrentExample((prev) => (prev + 1) % examples.length)
+    }, 4000) // Rotate every 4 seconds
+
+    return () => clearInterval(interval)
+  }, [isMobile])
 
   const handleSubmit = (e: FormEvent) => {
     e.preventDefault()
@@ -46,21 +96,27 @@ export default function NameInput({ onAnalyse, loading }: NameInputProps) {
         </button>
       </form>
 
-      <div className="mt-6 text-sm text-vercel-gray-600">
-        <p className="font-medium mb-2">Example names to try:</p>
-        <div className="flex flex-wrap gap-2">
-          {['张伟', 'Nguyễn Văn An', 'Smith', 'राज कुमार'].map((example) => (
-            <button
-              key={example}
-              type="button"
-              onClick={() => setName(example)}
-              disabled={loading}
-              className="px-3 py-1 bg-vercel-gray-100 hover:bg-vercel-gray-200 rounded-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {example}
-            </button>
-          ))}
-        </div>
+      <div className="mt-6 text-sm text-vercel-gray-500">
+        <p className="text-center">
+          Try:{' '}
+          <button
+            type="button"
+            onClick={() => {
+              const examples = isMobile ? MOBILE_EXAMPLES : EXAMPLE_NAMES
+              setName(examples[currentExample])
+            }}
+            disabled={loading}
+            className="font-medium text-vercel-gray-700 hover:text-vercel-black transition-colors disabled:opacity-50 disabled:cursor-not-allowed inline-flex items-center gap-1"
+            title="Click to use this example"
+          >
+            <span className="transition-opacity duration-300">
+              {(isMobile ? MOBILE_EXAMPLES : EXAMPLE_NAMES)[currentExample]}
+            </span>
+            <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
+            </svg>
+          </button>
+        </p>
       </div>
     </div>
   )
