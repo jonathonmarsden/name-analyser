@@ -69,47 +69,54 @@ class IPAConverter:
 
     def _analyse_with_claude(self, text: str, language: str) -> Dict[str, Any]:
         """
-        Use Claude API for comprehensive pronunciation analysis.
+        Use Claude API for comprehensive pronunciation analysis with language inference.
 
         Args:
             text: The name to analyse
-            language: The detected language
+            language: The script-detected language (may be "English" for Romanized text)
 
         Returns:
-            Dictionary with IPA, Macquarie notation, and guidance
+            Dictionary with inferred language, IPA, Macquarie notation, romanized form with diacritics, and guidance
         """
-        prompt = f"""You are an expert linguist and phonetician specialising in name pronunciation for Australian university graduation ceremonies.
+        prompt = f"""You are an expert linguist and onomastician (name etymology specialist) for Australian university graduation ceremonies.
 
-Analyse this name and provide accurate pronunciation guidance:
+CRITICAL TASK: Analyze the NAME ETYMOLOGY to infer the original cultural/linguistic origin, even if written in plain Latin alphabet.
 
-Name: {text}
-Detected Language: {language}
+Name to analyze: {text}
+Script detected: {language}
 
 Your task:
-1. Determine the authentic native pronunciation (as a native speaker would say it)
-2. Generate accurate IPA (International Phonetic Alphabet) notation
-3. Generate Macquarie Dictionary phonetic respelling (Australian English system)
-4. Provide brief pronunciation guidance for ceremony readers
+1. **INFER THE LANGUAGE OF ORIGIN** by analyzing:
+   - Name etymology and structure (e.g., "Zhang Wei" is Chinese, "Collinetti" is Italian)
+   - Common name patterns from different cultures
+   - Surname and given name conventions
 
-IMPORTANT:
-- For Chinese names: Use Mandarin pronunciation with proper tones
-- For Vietnamese names: Include tone marks
-- For names from tonal languages: Preserve tone information
-- For English names: Use standard pronunciation (not just spelling)
-- Be accurate to how a native speaker would pronounce it
+2. **Output the name WITH PROPER DIACRITICS/TONES**:
+   - Chinese: Add pinyin tone marks (Zhāng Wěi, Lǐ Míng)
+   - Vietnamese: Add tone marks (Nguyễn Văn An)
+   - Thai: Add tone marks where applicable
+   - Italian/European: Add accent marks (é, ü, etc.)
+
+3. Generate accurate IPA with tone marks for tonal languages
+
+4. Generate Macquarie Dictionary phonetic respelling (Australian English approximation)
+
+5. Provide pronunciation guidance emphasizing tones/stress
+
+CRITICAL EXAMPLES:
+- Input: "Zhang Wei" → Infer Chinese → Output with tones: "Zhāng Wěi"
+- Input: "Nguyen Van An" → Infer Vietnamese → Output: "Nguyễn Văn An"
+- Input: "Collinetti" → Infer Italian → Output: proper Italian pronunciation
+- Input: "李明" → Detect Chinese script → Output: "Lǐ Míng"
 
 Respond in JSON format:
 {{
-  "ipa": "IPA notation here",
-  "macquarie": "Macquarie phonetic respelling here",
-  "guidance": "Brief pronunciation tip (e.g., stress, tones, common errors to avoid)"
+  "inferred_language": "Chinese|Vietnamese|Italian|Thai|etc",
+  "name_with_diacritics": "Name with proper tone marks/accents",
+  "ipa": "IPA notation with tone marks",
+  "macquarie": "Macquarie phonetic respelling",
+  "guidance": "Brief tip on tones/stress/pronunciation"
 }}
-
-Examples of Macquarie notation:
-- "John" → "jon"
-- "Michael" → "mie·kuhl"
-- "Zhang Wei" → "jahng way"
-- "Nguyễn" → "ngwin"
 
 Return ONLY the JSON, no other text."""
 
@@ -129,6 +136,8 @@ Return ONLY the JSON, no other text."""
             try:
                 result = json.loads(response_text)
                 return {
+                    'inferred_language': result.get('inferred_language', ''),
+                    'name_with_diacritics': result.get('name_with_diacritics', ''),
                     'ipa': result.get('ipa', ''),
                     'macquarie': result.get('macquarie', ''),
                     'guidance': result.get('guidance', '')

@@ -22,10 +22,10 @@ export default function ResultsDisplay({ result }: ResultsDisplayProps) {
           </p>
         </div>
 
-        {/* Language Detection */}
+        {/* Language Inference */}
         <div className="border-b border-vercel-gray-200 pb-4">
           <h3 className="text-sm font-medium text-vercel-gray-600 mb-2">
-            Detected Language
+            Inferred Language
           </h3>
           <div className="flex items-center gap-3">
             <p className="text-xl font-medium text-vercel-black">

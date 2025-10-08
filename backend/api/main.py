@@ -116,22 +116,28 @@ async def analyse_name(request: NameAnalysisRequest):
         if not name:
             raise HTTPException(status_code=400, detail="Name cannot be empty")
 
-        # Detect language
-        language, confidence = language_detector.detect(name)
+        # Detect script (for rare cases with Chinese characters, etc.)
+        script_language, script_confidence = language_detector.detect(name)
 
-        # Analyse pronunciation (IPA + Macquarie + guidance)
-        pronunciation = ipa_converter.analyse_pronunciation(name, language)
+        # Analyse pronunciation - Claude will infer the actual language from etymology
+        pronunciation = ipa_converter.analyse_pronunciation(name, script_language)
 
-        # Get language information
-        language_info = language_detector.get_language_info(language)
+        # Use Claude's inferred language if available, otherwise fall back to script detection
+        inferred_language = pronunciation.get('inferred_language', script_language)
+
+        # Get language information based on inferred language
+        language_info = language_detector.get_language_info(inferred_language)
+
+        # Use name_with_diacritics if provided by Claude, otherwise use original
+        display_name = pronunciation.get('name_with_diacritics', name)
 
         return NameAnalysisResponse(
-            name=name,
-            language=language,
+            name=display_name,  # Show name with diacritics
+            language=inferred_language,  # Use Claude's inference
             ipa=pronunciation.get('ipa', ''),
             macquarie=pronunciation.get('macquarie', ''),
             pronunciation_guidance=pronunciation.get('guidance', ''),
-            confidence=confidence,
+            confidence=1.0 if pronunciation.get('inferred_language') else script_confidence,
             language_info=language_info
         )
 
