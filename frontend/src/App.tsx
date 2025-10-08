@@ -55,9 +55,6 @@ function App() {
           <h1 className="text-4xl font-bold text-vercel-black mb-2">
             Name Pronunciation Analyser
           </h1>
-          <p className="text-vercel-gray-600 text-lg">
-            Accurate pronunciation guidance for graduation ceremonies
-          </p>
         </header>
 
         <div className="max-w-4xl mx-auto">
