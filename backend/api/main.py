@@ -5,6 +5,7 @@ FastAPI application for Name Pronunciation Analyser.
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
+from typing import Optional
 import os
 import sys
 from pathlib import Path
@@ -64,6 +65,9 @@ class NameAnalysisResponse(BaseModel):
     pronunciation_guidance: str = ""
     confidence: float
     language_info: dict = {}
+    romanization_system: Optional[str] = None
+    tone_marks_added: bool = False
+    ambiguity: Optional[dict] = None
 
     class Config:
         json_schema_extra = {
@@ -138,7 +142,10 @@ async def analyse_name(request: NameAnalysisRequest):
             macquarie=pronunciation.get('macquarie', ''),
             pronunciation_guidance=pronunciation.get('guidance', ''),
             confidence=1.0 if pronunciation.get('inferred_language') else script_confidence,
-            language_info=language_info
+            language_info=language_info,
+            romanization_system=pronunciation.get('romanization_system'),
+            tone_marks_added=pronunciation.get('tone_marks_added', False),
+            ambiguity=pronunciation.get('ambiguity')
         )
 
     except HTTPException:

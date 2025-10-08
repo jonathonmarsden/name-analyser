@@ -78,44 +78,71 @@ class IPAConverter:
         Returns:
             Dictionary with inferred language, IPA, Macquarie notation, romanized form with diacritics, and guidance
         """
-        prompt = f"""You are an expert linguist and onomastician (name etymology specialist) for Australian university graduation ceremonies.
+        prompt = f"""You are an expert linguist and onomastician (name etymology specialist) helping professional ceremony readers pronounce names respectfully.
 
-CRITICAL TASK: Analyze the NAME ETYMOLOGY to infer the original cultural/linguistic origin, even if written in plain Latin alphabet.
+CRITICAL TASK: Analyze NAME ETYMOLOGY to infer cultural/linguistic origin, even from plain Latin alphabet spelling.
 
 Name to analyze: {text}
 Script detected: {language}
 
 Your task:
-1. **INFER THE LANGUAGE OF ORIGIN** by analyzing:
-   - Name etymology and structure (e.g., "Zhang Wei" is Chinese, "Collinetti" is Italian)
-   - Common name patterns from different cultures
-   - Surname and given name conventions
+1. **PRESERVE EXACT SPELLING** - Never change the name spelling (e.g., "Sylvia" must stay "Sylvia", not become "Silvia")
 
-2. **Output the name WITH PROPER DIACRITICS/TONES**:
-   - Chinese: Add pinyin tone marks (Zhāng Wěi, Lǐ Míng)
-   - Vietnamese: Add tone marks (Nguyễn Văn An)
+2. **INFER LANGUAGE/CULTURAL ORIGIN** by analyzing:
+   - Name etymology and structure (e.g., "Zhang Wei" = Chinese, "Collinetti" = Italian)
+   - Romanization patterns (e.g., "Nguyen" = Vietnamese romanization, "Szcz-" = Polish)
+   - Surname + given name combinations and cultural naming conventions
+   - For mixed-heritage names (e.g., "Maria Rodriguez-Smith"), analyze each component separately
+
+3. **ADD TONE MARKS ONLY** where they aid pronunciation (ONLY for tonal languages):
+   - Chinese pinyin: Add tone marks (Zhang Wei → Zhāng Wěi)
+   - Vietnamese: Add tone marks (Nguyen Van An → Nguyễn Văn An)
    - Thai: Add tone marks where applicable
-   - Italian/European: Add accent marks (é, ü, etc.)
+   - **DO NOT add** European accent marks (José, Müller, François) - these will be captured in IPA/phonetics
 
-3. Generate accurate IPA with tone marks for tonal languages
+4. **GENERATE IPA** with full phonetic detail:
+   - Tone marks for tonal languages (˥˧˩ etc.)
+   - Primary and secondary stress marks (ˈ ˌ)
+   - Accurate vowel quality and consonant articulation
 
-4. Generate Macquarie Dictionary phonetic respelling (Australian English approximation)
+5. **GENERATE MACQUARIE DICTIONARY** phonetic respelling:
+   - Australian English approximation
+   - Use hyphen-separated syllables
+   - Mark stress with CAPITALS: "jahng-WAY", "sihl-VEE-ah"
+   - Make it speakable by an Australian English speaker
 
-5. Provide pronunciation guidance emphasizing tones/stress
+6. **PRONUNCIATION GUIDANCE**:
+   - For tonal languages: Emphasize tone patterns
+   - For stress-accent languages: Note primary stress
+   - Brief, practical tips for ceremony readers
+
+7. **DETECT ROMANIZATION SYSTEM** (if applicable):
+   - Chinese: pinyin vs Wade-Giles vs Yale
+   - Note: "Wong" (Cantonese) vs "Huang" (Mandarin pinyin)
+
+8. **FLAG GENUINE AMBIGUITY** only when multiple pronunciations are equally likely:
+   - "Sarah" - could be English /ˈsɛərə/ or Arabic /ˈsaːra/
+   - "Andrea" - could be Italian /anˈdreːa/ (male) or English /ˈændriə/ (female)
+   - Use context clues (surname, full name pattern) to resolve if possible
 
 CRITICAL EXAMPLES:
-- Input: "Zhang Wei" → Infer Chinese → Output with tones: "Zhāng Wěi"
-- Input: "Nguyen Van An" → Infer Vietnamese → Output: "Nguyễn Văn An"
-- Input: "Collinetti" → Infer Italian → Output: proper Italian pronunciation
-- Input: "李明" → Detect Chinese script → Output: "Lǐ Míng"
+- Input: "Zhang Wei" → Output: "Zhāng Wěi" (PRESERVE "Zhang Wei" spelling, ADD pinyin tones)
+- Input: "Nguyen Van An" → Output: "Nguyễn Văn An" (ADD Vietnamese tones)
+- Input: "Sylvia Collinetti" → Output: "Sylvia Collinetti" (DO NOT change to "Silvia")
+- Input: "Jose Garcia" → Output: "Jose Garcia" (DO NOT add José accent - not a tone mark)
+- Input: "李明" → Output: "Lǐ Míng" (Chinese script detected, add pinyin tones)
+- Input: "Maria Rodriguez-Smith" → Mixed origin: Spanish + English (pronounce each component in its origin language)
 
 Respond in JSON format:
 {{
-  "inferred_language": "Chinese|Vietnamese|Italian|Thai|etc",
-  "name_with_diacritics": "Name with proper tone marks/accents",
-  "ipa": "IPA notation with tone marks",
+  "inferred_language": "Chinese (Mandarin)|Vietnamese|Italian|Mixed (Spanish/English)|etc",
+  "name_with_diacritics": "Name with ONLY tonal marks added (preserve exact spelling otherwise)",
+  "romanization_system": "pinyin|Wade-Giles|null",
+  "ipa": "IPA with tone marks and stress",
   "macquarie": "Macquarie phonetic respelling",
-  "guidance": "Brief tip on tones/stress/pronunciation"
+  "guidance": "Practical pronunciation tip emphasizing tones/stress",
+  "tone_marks_added": true|false,
+  "ambiguity": null|{{"note": "Could be X or Y. Pronunciation shown assumes X based on [reason]."}}
 }}
 
 Return ONLY the JSON, no other text."""
@@ -138,9 +165,12 @@ Return ONLY the JSON, no other text."""
                 return {
                     'inferred_language': result.get('inferred_language', ''),
                     'name_with_diacritics': result.get('name_with_diacritics', ''),
+                    'romanization_system': result.get('romanization_system'),
                     'ipa': result.get('ipa', ''),
                     'macquarie': result.get('macquarie', ''),
-                    'guidance': result.get('guidance', '')
+                    'guidance': result.get('guidance', ''),
+                    'tone_marks_added': result.get('tone_marks_added', False),
+                    'ambiguity': result.get('ambiguity')
                 }
             except json.JSONDecodeError:
                 # If JSON parsing fails, try to extract information
