@@ -27,14 +27,9 @@ export default function ResultsDisplay({ result }: ResultsDisplayProps) {
           <h3 className="text-sm font-medium text-vercel-gray-600 mb-2">
             Inferred Language
           </h3>
-          <div className="flex items-center gap-3">
-            <p className="text-xl font-medium text-vercel-black">
-              {result.language}
-            </p>
-            <span className="px-3 py-1 bg-vercel-gray-100 text-vercel-gray-700 text-sm rounded-full">
-              {Math.round(result.confidence * 100)}% confidence
-            </span>
-          </div>
+          <p className="text-xl font-medium text-vercel-black">
+            {result.language}
+          </p>
         </div>
 
         {/* IPA Notation */}

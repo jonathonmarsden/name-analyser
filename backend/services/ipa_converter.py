@@ -7,7 +7,10 @@ Railway deployment ready.
 from typing import Optional, Dict, Any
 import os
 import json
+import logging
 from anthropic import Anthropic
+
+logger = logging.getLogger(__name__)
 
 
 class IPAConverter:
@@ -21,14 +24,14 @@ class IPAConverter:
         if api_key and api_key != 'your_api_key_here':
             try:
                 self.client = Anthropic(api_key=api_key)
-                print("✓ Claude API initialised for pronunciation analysis")
+                logger.info("Claude API initialized for pronunciation analysis")
             except Exception as e:
-                print(f"Warning: Could not initialise Claude API: {e}")
-                print("Falling back to simplified notation")
+                logger.warning(f"Could not initialize Claude API: {e}")
+                logger.info("Falling back to simplified notation")
         else:
-            print("Info: ANTHROPIC_API_KEY not set.")
-            print("Add your API key to backend/.env for accurate IPA and Macquarie notation.")
-            print("Run: ./add-api-key.sh")
+            logger.info("ANTHROPIC_API_KEY not set")
+            logger.info("Add your API key to backend/.env for accurate IPA and Macquarie notation")
+            logger.info("Run: ./add-api-key.sh")
 
     def analyse_pronunciation(self, text: str, language: str) -> Dict[str, Any]:
         """
@@ -53,8 +56,8 @@ class IPAConverter:
             try:
                 return self._analyse_with_claude(text, language)
             except Exception as e:
-                print(f"Error using Claude API: {e}")
-                print("Falling back to simplified notation")
+                logger.error(f"Error using Claude API: {e}")
+                logger.info("Falling back to simplified notation")
 
         # Fallback to simplified notation
         return self._simplified_analysis(text, language)
@@ -174,7 +177,7 @@ Return ONLY the JSON, no other text."""
                 }
             except json.JSONDecodeError:
                 # If JSON parsing fails, try to extract information
-                print(f"Could not parse Claude response as JSON: {response_text[:200]}")
+                logger.error(f"Could not parse Claude response as JSON: {response_text[:200]}")
                 return self._simplified_analysis(text, language)
 
         except Exception as e:

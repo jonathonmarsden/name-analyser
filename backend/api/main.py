@@ -2,14 +2,18 @@
 FastAPI application for Name Pronunciation Analyser.
 """
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel
+from pydantic import BaseModel, Field, validator
 from typing import Optional
 import os
 import sys
+import logging
 from pathlib import Path
 from dotenv import load_dotenv
+from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi.util import get_remote_address
+from slowapi.errors import RateLimitExceeded
 
 # Add parent directory to path to import services
 sys.path.insert(0, str(Path(__file__).parent.parent))
@@ -19,12 +23,26 @@ from services import LanguageDetector, IPAConverter
 # Load environment variables
 load_dotenv()
 
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
+logger = logging.getLogger(__name__)
+
+# Initialise rate limiter
+limiter = Limiter(key_func=get_remote_address)
+
 # Initialise FastAPI app
 app = FastAPI(
     title="Name Pronunciation Analyser API",
     description="API for analysing name pronunciations for graduation ceremonies",
     version="0.1.0"
 )
+
+# Add rate limiter to app state
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
 # Configure CORS
 app.add_middleware(
@@ -33,8 +51,8 @@ app.add_middleware(
         "http://localhost:3000",
         "http://127.0.0.1:3000",
         "https://names.jonathonmarsden.com",
-        "https://*.vercel.app"
     ],
+    allow_origin_regex=r"https://.*\.vercel\.app",  # Regex pattern for Vercel preview deployments
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -47,7 +65,24 @@ ipa_converter = IPAConverter()
 
 # Request/Response models
 class NameAnalysisRequest(BaseModel):
-    name: str
+    name: str = Field(
+        ...,
+        min_length=1,
+        max_length=200,
+        description="Name to analyze"
+    )
+
+    @validator('name')
+    def validate_name(cls, v):
+        # Trim whitespace
+        v = v.strip()
+        if not v:
+            raise ValueError('Name cannot be empty or only whitespace')
+        # Prevent excessive special characters (potential injection)
+        special_char_count = sum(not c.isalnum() and not c.isspace() and c not in '-\'.,\u0300-\u036f\u1ab0-\u1aff\u1dc0-\u1dff\u20d0-\u20ff\ufe20-\ufe2f' for c in v)
+        if special_char_count > len(v) * 0.3:  # More than 30% special chars
+            raise ValueError('Name contains too many special characters')
+        return v
 
     class Config:
         json_schema_extra = {
@@ -104,21 +139,25 @@ async def health_check():
 
 
 @app.post("/api/analyse", response_model=NameAnalysisResponse)
-async def analyse_name(request: NameAnalysisRequest):
+@limiter.limit("10/minute")  # 10 requests per minute per IP
+async def analyse_name(request: Request, name_request: NameAnalysisRequest):
     """
     Analyse a name and return pronunciation information.
 
     Args:
-        request: NameAnalysisRequest containing the name to analyse
+        request: FastAPI request object (for rate limiting)
+        name_request: NameAnalysisRequest containing the name to analyse
 
     Returns:
         NameAnalysisResponse with language, IPA, and additional information
     """
     try:
-        name = request.name.strip()
+        name = name_request.name.strip()
 
         if not name:
             raise HTTPException(status_code=400, detail="Name cannot be empty")
+
+        logger.info(f"Analyzing name: {name[:50]}")
 
         # Detect script (for rare cases with Chinese characters, etc.)
         script_language, script_confidence = language_detector.detect(name)
@@ -134,6 +173,8 @@ async def analyse_name(request: NameAnalysisRequest):
 
         # Use name_with_diacritics if provided by Claude, otherwise use original
         display_name = pronunciation.get('name_with_diacritics', name)
+
+        logger.info(f"Successfully analyzed: {name[:50]} -> {inferred_language}")
 
         return NameAnalysisResponse(
             name=display_name,  # Show name with diacritics
@@ -151,9 +192,13 @@ async def analyse_name(request: NameAnalysisRequest):
     except HTTPException:
         raise
     except Exception as e:
+        # Log full error internally
+        logger.error(f"Error analyzing name '{name[:50]}': {str(e)}", exc_info=True)
+
+        # Return generic message to client
         raise HTTPException(
             status_code=500,
-            detail=f"Error analysing name: {str(e)}"
+            detail="An error occurred while analyzing the name. Please try again."
         )
 
 
