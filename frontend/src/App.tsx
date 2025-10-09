@@ -83,11 +83,8 @@ function App() {
       <div className="container mx-auto px-4 py-12 sm:py-16">
         <header className="text-center mb-12">
           <h1 className="text-4xl sm:text-5xl font-semibold text-vercel-black mb-3 tracking-tight">
-            Name Pronunciation Analyser
+            Name Analyser
           </h1>
-          <p className="text-vercel-gray-600 text-sm sm:text-base">
-            Respectful pronunciation guidance for ceremony readers
-          </p>
         </header>
 
         <div className="max-w-4xl mx-auto">

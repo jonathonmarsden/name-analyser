@@ -7,7 +7,7 @@ interface NameInputProps {
   result: AnalysisResult | null
 }
 
-interface PoetExample {
+export interface PoetExample {
   name: string
   englishName?: string
   culture: string
@@ -16,7 +16,7 @@ interface PoetExample {
 }
 
 // Celebrated poets from diverse cultures - showcasing the app's capabilities
-const EXAMPLE_POETS: PoetExample[] = [
+export const EXAMPLE_POETS: PoetExample[] = [
   {
     name: '北岛',
     englishName: 'Bei Dao',
@@ -194,7 +194,7 @@ export default function NameInput({ onAnalyse, loading, result }: NameInputProps
             onClick={() => setName(currentPoet.name)}
             disabled={loading}
             className="group inline-flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-vercel-gray-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-            title={`${currentPoet.englishName || currentPoet.name} - ${currentPoet.note}`}
+            title={`Click to analyze ${currentPoet.englishName || currentPoet.name}`}
           >
             <span className="text-lg font-medium text-vercel-black">
               {currentPoet.name}
@@ -208,22 +208,7 @@ export default function NameInput({ onAnalyse, loading, result }: NameInputProps
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
             </svg>
           </button>
-          <a
-            href={currentPoet.wikipedia}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="p-2 text-vercel-gray-400 hover:text-brand-primary transition-colors rounded-lg hover:bg-vercel-gray-100"
-            title={`Learn more about ${currentPoet.englishName || currentPoet.name}`}
-            aria-label={`Wikipedia page for ${currentPoet.englishName || currentPoet.name}`}
-          >
-            <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
-              <path d="M12 0C5.372 0 0 5.373 0 12s5.372 12 12 12 12-5.373 12-12S18.628 0 12 0zm5.562 11.048h-2.125l-1.825 5.064h-1.65l1.825-5.064H11.66l-1.825 5.064H8.188l1.825-5.064H7.888v-1.65h2.512l1.437-3.988h-2.45V3.76h2.837l1.825-5.063h1.65L13.875 3.76h2.125l1.825-5.063h1.65L17.65 3.76h2.125v1.65h-2.512L15.825 9.4h2.45v1.65h-2.837z"/>
-            </svg>
-          </a>
         </div>
-        <p className="text-center text-xs text-vercel-gray-500 mt-2 max-w-md mx-auto">
-          {currentPoet.note}
-        </p>
       </div>
     </div>
   )
