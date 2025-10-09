@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import NameInput from './components/NameInput'
 import ResultsDisplay from './components/ResultsDisplay'
 
@@ -25,8 +25,12 @@ function App() {
   const [result, setResult] = useState<AnalysisResult | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const requestIdRef = useRef(0)
 
   const handleAnalyse = async (name: string) => {
+    // Track this request to prevent race conditions
+    const requestId = ++requestIdRef.current
+
     setLoading(true)
     setError(null)
 
@@ -46,6 +50,7 @@ function App() {
         signal: controller.signal,
       })
 
+      // Clear timeout immediately after response
       clearTimeout(timeoutId)
 
       if (!response.ok) {
@@ -66,16 +71,27 @@ function App() {
       }
 
       const data = await response.json()
-      setResult(data)
+
+      // Only update state if this is still the latest request
+      if (requestIdRef.current === requestId) {
+        setResult(data)
+      }
     } catch (err) {
-      if (err instanceof Error && err.name === 'AbortError') {
-        setError('Request timed out. Please try again.')
-      } else {
-        setError(err instanceof Error ? err.message : 'An error occurred')
+      clearTimeout(timeoutId) // Ensure cleanup in error path
+
+      // Only update error state if this is still the latest request
+      if (requestIdRef.current === requestId) {
+        if (err instanceof Error && err.name === 'AbortError') {
+          setError('Request timed out. Please try again.')
+        } else {
+          setError(err instanceof Error ? err.message : 'An error occurred')
+        }
       }
     } finally {
-      clearTimeout(timeoutId)
-      setLoading(false)
+      // Only update loading state if this is still the latest request
+      if (requestIdRef.current === requestId) {
+        setLoading(false)
+      }
     }
   }
 

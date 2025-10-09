@@ -4,7 +4,7 @@ FastAPI application for Name Pronunciation Analyser.
 
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel, Field, validator
+from pydantic import BaseModel, Field, field_validator
 from typing import Optional
 import os
 import sys
@@ -72,13 +72,19 @@ class NameAnalysisRequest(BaseModel):
         description="Name to analyze"
     )
 
-    @validator('name')
-    def validate_name(cls, v):
+    @field_validator('name')
+    @classmethod
+    def validate_name(cls, v: str) -> str:
         import unicodedata
         # Trim whitespace
         v = v.strip()
         if not v:
             raise ValueError('Name cannot be empty or only whitespace')
+
+        # Normalize to NFC (Canonical Composition) for consistent character representation
+        # This ensures combining marks are composed with their base characters
+        v = unicodedata.normalize('NFC', v)
+
         # Count only truly problematic characters (control chars, etc.)
         # Allow letters from any script, numbers, spaces, common name punctuation, and combining marks
         problematic_count = 0
