@@ -18,6 +18,7 @@ export interface AnalysisResult {
   ambiguity?: {
     note: string
   }
+  cultural_notes?: string
 }
 
 function App() {
