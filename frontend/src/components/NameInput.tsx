@@ -1,41 +1,123 @@
 import { useState, FormEvent, useEffect } from 'react'
+import { AnalysisResult } from '../App'
 
 interface NameInputProps {
   onAnalyse: (name: string) => void
   loading: boolean
+  result: AnalysisResult | null
+}
+
+interface PoetExample {
+  name: string
+  englishName?: string
+  culture: string
+  wikipedia: string
+  note: string
 }
 
 // Celebrated poets from diverse cultures - showcasing the app's capabilities
-const EXAMPLE_NAMES = [
-  '北岛', // Bei Dao - Chinese
-  'Xuân Quỳnh', // Vietnamese with tones
-  'محمود درويش', // Mahmoud Darwish - Arabic (Palestinian)
-  'نازك الملائكة', // Nazik al-Malaika - Arabic (Iraqi)
-  'אַבֿרהם סוצקעווער', // Abraham Sutzkever - Yiddish
-  'রবীন্দ্রনাথ ঠাকুর', // Rabindranath Tagore - Bengali
-  '与謝野晶子', // Yosano Akiko - Japanese
-  'சுப்ரமணிய பாரதி', // Subramania Bharati - Tamil
-  'Wole Soyinka', // Yoruba/English (Nigeria)
-  'สุนทรภู่', // Sunthorn Phu - Thai
-  'ጸጋዬ ገብረ መድኅን', // Tsegaye Gabre-Medhin - Amharic/Ge'ez
-  'Анна Ахматова', // Anna Akhmatova - Russian
-  '김소월', // Kim Sowol - Korean
-  'Judith Wright', // English (Australia)
+const EXAMPLE_POETS: PoetExample[] = [
+  {
+    name: '北岛',
+    englishName: 'Bei Dao',
+    culture: 'Chinese',
+    wikipedia: 'https://en.wikipedia.org/wiki/Bei_Dao',
+    note: 'Influential Chinese poet and dissident, Nobel Prize nominee'
+  },
+  {
+    name: 'Xuân Quỳnh',
+    culture: 'Vietnamese',
+    wikipedia: 'https://e.vnexpress.net/news/news/xuan-quynh-first-vietnamese-woman-on-google-doodle-3992620.html',
+    note: 'Pioneering Vietnamese poet, first woman on Vietnam Google Doodle'
+  },
+  {
+    name: 'محمود درويش',
+    englishName: 'Mahmoud Darwish',
+    culture: 'Palestinian',
+    wikipedia: 'https://en.wikipedia.org/wiki/Mahmoud_Darwish',
+    note: 'Palestine\'s national poet, master of Arabic verse'
+  },
+  {
+    name: 'نازك الملائكة',
+    englishName: 'Nazik Al-Malaika',
+    culture: 'Iraqi',
+    wikipedia: 'https://en.wikipedia.org/wiki/Nazik_Al-Malaika',
+    note: 'Iraqi poet who pioneered free verse in Arabic poetry'
+  },
+  {
+    name: 'אַבֿרהם סוצקעווער',
+    englishName: 'Abraham Sutzkever',
+    culture: 'Yiddish',
+    wikipedia: 'https://en.wikipedia.org/wiki/Abraham_Sutzkever',
+    note: 'Greatest Yiddish poet of the 20th century, Holocaust witness'
+  },
+  {
+    name: 'রবীন্দ্রনাথ ঠাকুর',
+    englishName: 'Rabindranath Tagore',
+    culture: 'Bengali',
+    wikipedia: 'https://en.wikipedia.org/wiki/Rabindranath_Tagore',
+    note: 'Nobel laureate, composer of national anthems of India and Bangladesh'
+  },
+  {
+    name: '与謝野晶子',
+    englishName: 'Yosano Akiko',
+    culture: 'Japanese',
+    wikipedia: 'https://en.wikipedia.org/wiki/Yosano_Akiko',
+    note: 'Modernist tanka poet, feminist icon of Meiji-era Japan'
+  },
+  {
+    name: 'சுப்ரமணிய பாரதி',
+    englishName: 'Subramania Bharati',
+    culture: 'Tamil',
+    wikipedia: 'https://en.wikipedia.org/wiki/Subramania_Bharati',
+    note: 'Tamil poet and independence activist, transformed modern Tamil poetry'
+  },
+  {
+    name: 'Wole Soyinka',
+    culture: 'Nigerian (Yoruba)',
+    wikipedia: 'https://en.wikipedia.org/wiki/Wole_Soyinka',
+    note: 'First African Nobel laureate in Literature, playwright and poet'
+  },
+  {
+    name: 'สุนทรภู่',
+    englishName: 'Sunthorn Phu',
+    culture: 'Thai',
+    wikipedia: 'https://en.wikipedia.org/wiki/Sunthorn_Phu',
+    note: 'Thailand\'s most celebrated poet, honored on UNESCO\'s Memory of the World'
+  },
+  {
+    name: 'ጸጋዬ ገብረ መድኅን',
+    englishName: 'Tsegaye Gabre-Medhin',
+    culture: 'Ethiopian',
+    wikipedia: 'https://en.wikipedia.org/wiki/Tsegaye_Gabre-Medhin',
+    note: 'Ethiopia\'s Poet Laureate, wrote in Amharic and English'
+  },
+  {
+    name: 'Анна Ахматова',
+    englishName: 'Anna Akhmatova',
+    culture: 'Russian',
+    wikipedia: 'https://en.wikipedia.org/wiki/Anna_Akhmatova',
+    note: 'Russian modernist poet, voice of Soviet-era suffering'
+  },
+  {
+    name: '김소월',
+    englishName: 'Kim Sowol',
+    culture: 'Korean',
+    wikipedia: 'https://en.wikipedia.org/wiki/Kim_Sowol',
+    note: 'Korea\'s most beloved modern poet, master of han (longing)'
+  },
+  {
+    name: 'Judith Wright',
+    culture: 'Australian',
+    wikipedia: 'https://en.wikipedia.org/wiki/Judith_Wright',
+    note: 'Australia\'s foremost poet, environmentalist and Indigenous rights activist'
+  },
 ]
 
 // Mobile-optimized subset (8 examples)
-const MOBILE_EXAMPLES = [
-  '北岛',
-  'Xuân Quỳnh',
-  'محمود درويش',
-  'نازك الملائكة',
-  'אַבֿרהם סוצקעווער',
-  'রবীন্দ্রনাথ ঠাকুর',
-  'Wole Soyinka',
-  '与謝野晶子',
-]
+const MOBILE_POET_INDICES = [0, 1, 2, 3, 4, 5, 8, 6]
 
-export default function NameInput({ onAnalyse, loading }: NameInputProps) {
+export default function NameInput({ onAnalyse, loading, result }: NameInputProps) {
   const [name, setName] = useState('')
   const [currentExample, setCurrentExample] = useState(0)
   const [isMobile, setIsMobile] = useState(false)
@@ -48,15 +130,13 @@ export default function NameInput({ onAnalyse, loading }: NameInputProps) {
     return () => window.removeEventListener('resize', checkMobile)
   }, [])
 
-  // Rotate examples
+  // Rotate example after each analysis result
   useEffect(() => {
-    const examples = isMobile ? MOBILE_EXAMPLES : EXAMPLE_NAMES
-    const interval = setInterval(() => {
-      setCurrentExample((prev) => (prev + 1) % examples.length)
-    }, 4000) // Rotate every 4 seconds
-
-    return () => clearInterval(interval)
-  }, [isMobile])
+    if (result) {
+      const maxExamples = isMobile ? MOBILE_POET_INDICES.length : EXAMPLE_POETS.length
+      setCurrentExample((prev) => (prev + 1) % maxExamples)
+    }
+  }, [result, isMobile])
 
   const handleSubmit = (e: FormEvent) => {
     e.preventDefault()
@@ -65,9 +145,13 @@ export default function NameInput({ onAnalyse, loading }: NameInputProps) {
     }
   }
 
+  const currentPoet = isMobile
+    ? EXAMPLE_POETS[MOBILE_POET_INDICES[currentExample]]
+    : EXAMPLE_POETS[currentExample]
+
   return (
-    <div className="bg-white rounded-lg shadow-lg p-8">
-      <form onSubmit={handleSubmit} className="space-y-4" role="search">
+    <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-sm border border-vercel-gray-200/60 p-8 transition-shadow hover:shadow-md">
+      <form onSubmit={handleSubmit} className="space-y-5" role="search">
         <div>
           <label
             htmlFor="name-input"
@@ -81,7 +165,7 @@ export default function NameInput({ onAnalyse, loading }: NameInputProps) {
             value={name}
             onChange={(e) => setName(e.target.value)}
             placeholder="for example: 张伟, Nguyễn Văn An, Marsden"
-            className="w-full px-4 py-3 text-lg border border-vercel-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-vercel-black focus:border-transparent bg-white text-black"
+            className="w-full px-4 py-3 text-lg border border-vercel-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-primary/50 focus:border-brand-primary bg-white text-vercel-black transition-all"
             disabled={loading}
             autoFocus
             aria-label="Name to analyze"
@@ -93,33 +177,52 @@ export default function NameInput({ onAnalyse, loading }: NameInputProps) {
         <button
           type="submit"
           disabled={loading || !name.trim()}
-          className="w-full bg-vercel-black text-white py-3 px-6 rounded-lg font-medium hover:bg-vercel-gray-800 disabled:bg-vercel-gray-300 disabled:cursor-not-allowed transition-colors duration-200"
+          className="w-full bg-gradient-to-r from-brand-primary to-indigo-600 text-white py-3 px-6 rounded-xl font-medium hover:from-brand-primary/90 hover:to-indigo-600/90 disabled:from-vercel-gray-300 disabled:to-vercel-gray-300 disabled:cursor-not-allowed transition-all duration-200 shadow-sm hover:shadow"
           aria-label={loading ? 'Analyzing name' : 'Analyze name'}
         >
           {loading ? 'Analysing...' : 'Analyse Name'}
         </button>
       </form>
 
-      <div className="mt-6 text-sm">
-        <p className="text-center text-vercel-gray-600">
-          Try:{' '}
+      <div className="mt-6 pt-5 border-t border-vercel-gray-200/60">
+        <p className="text-center text-vercel-gray-600 text-sm mb-2">
+          Try an example:
+        </p>
+        <div className="flex items-center justify-center gap-2">
           <button
             type="button"
-            onClick={() => {
-              const examples = isMobile ? MOBILE_EXAMPLES : EXAMPLE_NAMES
-              setName(examples[currentExample])
-            }}
+            onClick={() => setName(currentPoet.name)}
             disabled={loading}
-            className="font-semibold text-vercel-gray-500 hover:text-blue-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed inline-flex items-center gap-1 px-2 py-1 rounded hover:bg-vercel-gray-100"
-            title="Click to use this example"
+            className="group inline-flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-vercel-gray-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            title={`${currentPoet.englishName || currentPoet.name} - ${currentPoet.note}`}
           >
-            <span className="transition-opacity duration-300 text-lg">
-              {(isMobile ? MOBILE_EXAMPLES : EXAMPLE_NAMES)[currentExample]}
+            <span className="text-lg font-medium text-vercel-black">
+              {currentPoet.name}
             </span>
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            {currentPoet.englishName && (
+              <span className="text-xs text-vercel-gray-500">
+                ({currentPoet.englishName})
+              </span>
+            )}
+            <svg className="w-4 h-4 text-vercel-gray-400 group-hover:text-brand-primary transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
             </svg>
           </button>
+          <a
+            href={currentPoet.wikipedia}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="p-2 text-vercel-gray-400 hover:text-brand-primary transition-colors rounded-lg hover:bg-vercel-gray-100"
+            title={`Learn more about ${currentPoet.englishName || currentPoet.name}`}
+            aria-label={`Wikipedia page for ${currentPoet.englishName || currentPoet.name}`}
+          >
+            <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+              <path d="M12 0C5.372 0 0 5.373 0 12s5.372 12 12 12 12-5.373 12-12S18.628 0 12 0zm5.562 11.048h-2.125l-1.825 5.064h-1.65l1.825-5.064H11.66l-1.825 5.064H8.188l1.825-5.064H7.888v-1.65h2.512l1.437-3.988h-2.45V3.76h2.837l1.825-5.063h1.65L13.875 3.76h2.125l1.825-5.063h1.65L17.65 3.76h2.125v1.65h-2.512L15.825 9.4h2.45v1.65h-2.837z"/>
+            </svg>
+          </a>
+        </div>
+        <p className="text-center text-xs text-vercel-gray-500 mt-2 max-w-md mx-auto">
+          {currentPoet.note}
         </p>
       </div>
     </div>
