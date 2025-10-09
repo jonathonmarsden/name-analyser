@@ -74,13 +74,20 @@ class NameAnalysisRequest(BaseModel):
 
     @validator('name')
     def validate_name(cls, v):
+        import unicodedata
         # Trim whitespace
         v = v.strip()
         if not v:
             raise ValueError('Name cannot be empty or only whitespace')
-        # Prevent excessive special characters (potential injection)
-        special_char_count = sum(not c.isalnum() and not c.isspace() and c not in '-\'.,\u0300-\u036f\u1ab0-\u1aff\u1dc0-\u1dff\u20d0-\u20ff\ufe20-\ufe2f' for c in v)
-        if special_char_count > len(v) * 0.3:  # More than 30% special chars
+        # Count only truly problematic characters (control chars, etc.)
+        # Allow letters from any script, numbers, spaces, common name punctuation, and combining marks
+        problematic_count = 0
+        for c in v:
+            cat = unicodedata.category(c)
+            # Allow: Letters (L*), Numbers (N*), Spaces (Z*), Marks (M*), common punctuation
+            if cat[0] not in ('L', 'N', 'Z', 'M') and c not in '-\'.,':
+                problematic_count += 1
+        if problematic_count > len(v) * 0.3:  # More than 30% problematic chars
             raise ValueError('Name contains too many special characters')
         return v
 
