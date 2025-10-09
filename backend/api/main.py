@@ -103,6 +103,7 @@ class NameAnalysisResponse(BaseModel):
     romanization_system: Optional[str] = None
     tone_marks_added: bool = False
     ambiguity: Optional[dict] = None
+    cultural_notes: str = ""
 
     class Config:
         json_schema_extra = {
@@ -186,7 +187,8 @@ async def analyse_name(request: Request, name_request: NameAnalysisRequest):
             language_info=language_info,
             romanization_system=pronunciation.get('romanization_system'),
             tone_marks_added=pronunciation.get('tone_marks_added', False),
-            ambiguity=pronunciation.get('ambiguity')
+            ambiguity=pronunciation.get('ambiguity'),
+            cultural_notes=pronunciation.get('cultural_notes', '')
         )
 
     except HTTPException:

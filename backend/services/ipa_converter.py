@@ -147,7 +147,8 @@ Respond in JSON format:
   "macquarie": "Macquarie phonetic respelling",
   "guidance": "Practical pronunciation tip emphasizing tones/stress",
   "tone_marks_added": true|false,
-  "ambiguity": null|{{"note": "Could be X or Y. Pronunciation shown assumes X based on [reason]."}}
+  "ambiguity": null|{{"note": "Could be X or Y. Pronunciation shown assumes X based on [reason]."}},
+  "cultural_notes": "Brief (1-2 sentences) etymology, meaning, regional origin, or cultural significance. E.g., 'Common surname in northern China, literally means north island' or 'Italian diminutive surname from the Tuscany region, means little bird' or 'Vietnamese given name meaning spring, commonly used for girls born in spring'. Be specific and interesting, avoid generic statements."
 }}
 
 Return ONLY the JSON, no other text."""
@@ -175,7 +176,8 @@ Return ONLY the JSON, no other text."""
                     'macquarie': result.get('macquarie', ''),
                     'guidance': result.get('guidance', ''),
                     'tone_marks_added': result.get('tone_marks_added', False),
-                    'ambiguity': result.get('ambiguity')
+                    'ambiguity': result.get('ambiguity'),
+                    'cultural_notes': result.get('cultural_notes', '')
                 }
             except json.JSONDecodeError:
                 # If JSON parsing fails, try to extract information
