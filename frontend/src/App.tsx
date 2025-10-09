@@ -51,8 +51,13 @@ function App() {
         let errorMessage = 'Failed to analyse name'
         try {
           const errorData = await response.json()
-          // FastAPI returns {detail: "error message"}
-          errorMessage = errorData.detail || errorMessage
+          // FastAPI returns {detail: "error message"} or {detail: [{...}]} for validation errors
+          if (typeof errorData.detail === 'string') {
+            errorMessage = errorData.detail
+          } else if (Array.isArray(errorData.detail)) {
+            // Pydantic validation error format
+            errorMessage = errorData.detail.map((err: any) => err.msg).join(', ')
+          }
         } catch {
           // If JSON parsing fails, use default message
         }
@@ -74,24 +79,27 @@ function App() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-vercel-gray-50 to-vercel-gray-100">
-      <div className="container mx-auto px-4 py-12">
+    <div className="min-h-screen bg-gradient-to-br from-vercel-gray-50 via-indigo-50/30 to-amber-50/20">
+      <div className="container mx-auto px-4 py-12 sm:py-16">
         <header className="text-center mb-12">
-          <h1 className="text-4xl font-bold text-vercel-black mb-2">
+          <h1 className="text-4xl sm:text-5xl font-semibold text-vercel-black mb-3 tracking-tight">
             Name Pronunciation Analyser
           </h1>
+          <p className="text-vercel-gray-600 text-sm sm:text-base">
+            Respectful pronunciation guidance for ceremony readers
+          </p>
         </header>
 
         <div className="max-w-4xl mx-auto">
-          <NameInput onAnalyse={handleAnalyse} loading={loading} />
+          <NameInput onAnalyse={handleAnalyse} loading={loading} result={result} />
 
           {error && (
             <div
-              className="mt-6 p-4 bg-red-50 border border-red-200 rounded-lg"
+              className="mt-6 p-4 bg-rose-50 border border-rose-200/60 rounded-xl"
               role="alert"
               aria-live="assertive"
             >
-              <p className="text-red-800">{error}</p>
+              <p className="text-rose-800">{error}</p>
             </div>
           )}
 

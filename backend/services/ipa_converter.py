@@ -104,9 +104,11 @@ Your task:
    - **DO NOT add** European accent marks (José, Müller, François) - these will be captured in IPA/phonetics
 
 4. **GENERATE IPA** with full phonetic detail:
+   - Use PROPER IPA SYMBOLS, not romanization (e.g., /joꜜsano akʲiko/ NOT "josano akiko")
    - Tone marks for tonal languages (˥˧˩ etc.)
    - Primary and secondary stress marks (ˈ ˌ)
    - Accurate vowel quality and consonant articulation
+   - Japanese: Use IPA symbols with pitch accent marks (ꜜ for downstep)
 
 5. **GENERATE MACQUARIE DICTIONARY** phonetic respelling:
    - Australian English approximation
