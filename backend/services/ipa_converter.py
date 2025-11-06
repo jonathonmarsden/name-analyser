@@ -155,7 +155,7 @@ Return ONLY the JSON, no other text."""
 
         try:
             message = self.client.messages.create(
-                model="claude-3-haiku-20240307",
+                model="claude-3-5-haiku-20241022",
                 max_tokens=500,
                 messages=[
                     {"role": "user", "content": prompt}
