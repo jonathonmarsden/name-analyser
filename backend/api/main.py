@@ -196,7 +196,7 @@ async def health_check():
         anthropic = Anthropic(api_key=api_key)
 
         response = anthropic.messages.create(
-            model="claude-3-haiku-20240307",  # Cheapest/fastest
+            model="claude-haiku-4-5-20251001",  # Latest Haiku model
             max_tokens=10,
             messages=[{
                 "role": "user",

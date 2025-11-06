@@ -171,9 +171,20 @@ npm run dev
 
 ### Deployment
 
-See deployment guides:
-- `docs/RAILWAY_DEPLOYMENT.md` - Backend deployment to Railway
-- Frontend deploys automatically to Vercel on push to main branch
+**Live Application:**
+- Frontend: https://names.jonathonmarsden.com (Vercel)
+- Backend: https://web-production-972ff.up.railway.app (Railway)
+
+See `docs/RAILWAY_DEPLOYMENT.md` for original deployment instructions.
+
+## Monitoring & Health
+
+Name Analyser includes automated health checks that:
+- Verify API key configuration and connectivity
+- Send email alerts when issues are detected
+- Provide uptime monitoring via UptimeRobot
+
+**Health Check URL**: https://web-production-972ff.up.railway.app/health
 
 ## Design Principles
 
