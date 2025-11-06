@@ -1,94 +1,84 @@
-# 🚀 Quick Start - Name Pronunciation Analyser
+# 🚀 Name Pronunciation Analyser
 
-## Current Status
+## ✅ Current Status (October 9, 2025)
 
-✅ **Backend**: Running on http://localhost:8000
-✅ **Claude API Integration**: Ready (add API key for accurate IPA)
-⏳ **Frontend**: Ready to start
+**🎉 FULLY DEPLOYED AND WORKING IN PRODUCTION!**
 
-## Quick Start (2 options)
+- **Live Application**: https://names.jonathonmarsden.com
+- **Frontend**: Vercel ✅
+- **Backend**: Railway ✅
+- **Status**: Fully functional
 
-### Option 1: Start Without API Key (Works Immediately)
+## Quick Links
 
-Open a **new terminal** and run:
+### Production
+- **Use the App**: https://names.jonathonmarsden.com
+- **GitHub**: https://github.com/jonathonmarsden/name-analyser
+- **Code Review**: See `CODE_REVIEW.md` (Grade: A-, 8.5/10)
 
+### Documentation
+- **Project Summary**: `PROJECT_SUMMARY.md` - Overview and features
+- **README**: `README.md` - Technical documentation
+- **Code Review**: `CODE_REVIEW.md` - Security and quality review
+- **Setup Guide**: `SETUP_GUIDE.md` - Local development setup
+
+## For Local Development
+
+### Prerequisites
+- Python 3.9+
+- Node.js 18+
+- Anthropic API key
+
+### Backend Setup
 ```bash
-cd /Users/jonathonmarsden/Projects/name-analyser
-./start-frontend.sh
+cd backend
+python -m venv venv
+source venv/bin/activate  # On Windows: venv\Scripts\activate
+pip install -r requirements.txt
+
+# Add your API key
+echo "ANTHROPIC_API_KEY=your_key_here" > .env
+
+# Run the server
+cd api
+python main.py
+# Backend runs on http://localhost:8000
 ```
 
-Then open your browser to: **http://localhost:3000**
-
-The app will work with simplified phonetic notation.
-
-### Option 2: Enable Claude-Powered IPA (Recommended)
-
-For accurate IPA notation, add your Anthropic API key:
-
+### Frontend Setup
 ```bash
-./add-api-key.sh
+cd frontend
+npm install
+npm run dev
+# Frontend runs on http://localhost:5173
 ```
 
-Then restart the backend and start the frontend.
+## What This App Does
 
-## Test the Application
+Professional name pronunciation tool for graduation ceremonies:
+- **Etymology-based language inference** - Determines cultural origin from name structure
+- **IPA notation** - International Phonetic Alphabet with tone marks
+- **Macquarie phonetics** - Australian English phonetic respelling
+- **Pronunciation guidance** - Tips on stress, tones, and common errors
+- **Cultural context** - Family name order and cultural notes
 
-Try these sample names:
+## Tech Stack
 
-1. **张伟** (Chinese)
-2. **Nguyễn Văn An** (Vietnamese)
-3. **Smith** (English)
-4. **राज कुमार** (Hindi)
+- **Frontend**: React + TypeScript + Vite + Tailwind CSS
+- **Backend**: Python FastAPI + Anthropic Claude API
+- **Deployment**: Vercel (frontend) + Railway (backend)
+- **Features**: Rate limiting, Unicode validation, accessibility
 
-## What to Expect
+## Recommended Improvements (Optional)
 
-The application will:
-- Detect the language of origin
-- Show confidence score
-- Display phonetic notation (simplified for MVP)
-- Provide cultural context (family name order, notes)
+The app is working well, but these would make it even better:
+1. Add test coverage (currently 0%)
+2. Implement caching to reduce API costs
+3. Tighten CORS configuration slightly
+4. Clean up code duplication
 
-## Documentation
-
-- `START_HERE.md` - This file (quick start)
-- `ENABLE_CLAUDE_IPA.md` - How to enable Claude-powered IPA conversion
-- `PHASE_1_COMPLETE.md` - What's been built and what's next
-- `SETUP_GUIDE.md` - Full setup instructions
-- `docs/CLAUDE_CODE_BRIEF.md` - Detailed development brief
-- `docs/TECHNICAL_SPECS.md` - Technical specifications
-
-## Need Help?
-
-If the backend stopped running:
-```bash
-./start-backend.sh
-```
-
-If you need to reinstall dependencies:
-```bash
-./setup.sh
-```
+See `CODE_REVIEW.md` for details.
 
 ---
 
-## 🎯 Current Features
-
-✅ Language detection (Chinese, Vietnamese, Hindi, English, Arabic, Thai, Korean, Japanese, etc.)
-✅ Cultural context (family name order, pronunciation notes)
-✅ IPA conversion with Claude API integration
-✅ Automatic fallback (works without API key)
-✅ Clean, professional UI (Vercel design system)
-✅ REST API with FastAPI
-✅ Real-time pronunciation analysis
-
-## 📊 Status
-
-**Phase 1 MVP: COMPLETE** ✅
-**Claude IPA Integration: COMPLETE** ✅
-**Ready for**: Testing → Phase 2 enhancements
-
----
-
-**Ready for your review!** 🎉
-
-Try the app, then we can proceed to Phase 2 (Macquarie phonetics, audio, enhanced cultural analysis).
+**Need help?** Check the documentation files listed above or visit the live app!

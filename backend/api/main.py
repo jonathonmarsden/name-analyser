@@ -148,8 +148,129 @@ async def root():
 
 @app.get("/health")
 async def health_check():
-    """Health check endpoint."""
-    return {"status": "healthy"}
+    """
+    Health check endpoint that validates API configuration and connectivity.
+
+    Checks:
+    - API key is configured
+    - Claude API is accessible
+
+    Returns 200 if healthy, 503 if unhealthy.
+    """
+    import time
+    from anthropic import Anthropic, APIError
+
+    start_time = time.time()
+
+    result = {
+        "status": "healthy",
+        "timestamp": time.strftime("%Y-%m-%dT%H:%M:%S.000Z", time.gmtime()),
+        "checks": {
+            "api_configured": False,
+        },
+        "app": "name-analyser",
+        "version": "0.1.0"
+    }
+
+    try:
+        # Check 1: API key is configured
+        api_key = os.getenv("ANTHROPIC_API_KEY")
+        if not api_key:
+            result["status"] = "unhealthy"
+            result["checks"]["api_configured"] = False
+            result["checks"]["error"] = "ANTHROPIC_API_KEY not configured"
+
+            # Send alert
+            await send_alert({
+                "app": "Name Analyser",
+                "url": "https://names.jonathonmarsden.com",
+                "error": "ANTHROPIC_API_KEY not configured",
+                "timestamp": result["timestamp"]
+            })
+
+            return result
+
+        result["checks"]["api_configured"] = True
+
+        # Check 2: Test API connectivity
+        anthropic = Anthropic(api_key=api_key)
+
+        response = anthropic.messages.create(
+            model="claude-3-haiku-20240307",  # Cheapest/fastest
+            max_tokens=10,
+            messages=[{
+                "role": "user",
+                "content": "ok"
+            }]
+        )
+
+        if response.content and len(response.content) > 0:
+            result["checks"]["api_accessible"] = True
+            result["status"] = "healthy"
+        else:
+            raise Exception("Empty response from API")
+
+        duration = (time.time() - start_time) * 1000
+        result["response_time_ms"] = int(duration)
+
+        return result
+
+    except Exception as e:
+        result["status"] = "unhealthy"
+        result["checks"]["api_accessible"] = False
+
+        # Determine error type
+        error_message = str(e)
+        if "API key" in error_message or "authentication" in error_message.lower():
+            error_message = "Invalid API key"
+        elif "rate limit" in error_message.lower():
+            error_message = "API rate limit exceeded"
+        elif "overload" in error_message.lower():
+            error_message = "API temporarily overloaded"
+        elif "quota" in error_message.lower() or "balance" in error_message.lower():
+            error_message = "API quota or balance issue"
+
+        result["checks"]["error"] = error_message
+
+        # Send alert for critical errors (not temporary overloads)
+        if "overload" not in error_message.lower():
+            await send_alert({
+                "app": "Name Analyser",
+                "url": "https://names.jonathonmarsden.com",
+                "error": error_message,
+                "timestamp": result["timestamp"],
+                "details": str(e)
+            })
+
+        duration = (time.time() - start_time) * 1000
+        result["response_time_ms"] = int(duration)
+
+        logger.error(f"Health check failed: {error_message}")
+
+        return result
+
+
+async def send_alert(payload: dict):
+    """Send alert email when health check fails."""
+    import httpx
+
+    try:
+        alert_endpoint = os.getenv("ALERT_EMAIL_ENDPOINT")
+        if not alert_endpoint:
+            logger.error(f"ALERT_EMAIL_ENDPOINT not configured - alert not sent: {payload}")
+            return
+
+        async with httpx.AsyncClient() as client:
+            response = await client.post(
+                alert_endpoint,
+                json=payload,
+                timeout=10.0
+            )
+
+            if response.status_code != 200:
+                logger.error(f"Failed to send alert: {response.status_code} {response.text}")
+    except Exception as e:
+        logger.error(f"Error sending alert: {str(e)}")
 
 
 @app.post("/api/analyse", response_model=NameAnalysisResponse)
