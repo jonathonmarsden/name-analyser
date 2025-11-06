@@ -165,6 +165,16 @@ Return ONLY the JSON, no other text."""
             # Extract the response
             response_text = message.content[0].text.strip()
 
+            # Strip markdown code blocks if present
+            if response_text.startswith('```'):
+                # Remove ```json or ``` at the start and ``` at the end
+                lines = response_text.split('\n')
+                if lines[0].startswith('```'):
+                    lines = lines[1:]  # Remove first line with ```json
+                if lines and lines[-1].strip() == '```':
+                    lines = lines[:-1]  # Remove last line with ```
+                response_text = '\n'.join(lines).strip()
+
             # Parse JSON response
             try:
                 result = json.loads(response_text)
