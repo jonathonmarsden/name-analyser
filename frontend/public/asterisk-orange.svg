@@ -1,0 +1,26 @@
+<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+  <!-- True typographic asterisk - 5 rays, non-serif style -->
+  <!-- Transparent background for actual use -->
+  
+  <!-- Five rays at 72° intervals (360°/5 = 72°) -->
+  <!-- Starting from top, going clockwise -->
+  
+  <!-- Ray 1: Top (0°) -->
+  <rect x="46" y="22" width="8" height="32" fill="#E8742F" rx="4"/>
+  
+  <!-- Ray 2: Upper right (72°) -->
+  <rect x="46" y="22" width="8" height="32" fill="#E8742F" rx="4" 
+        transform="rotate(72 50 50)"/>
+  
+  <!-- Ray 3: Lower right (144°) -->
+  <rect x="46" y="22" width="8" height="32" fill="#E8742F" rx="4" 
+        transform="rotate(144 50 50)"/>
+  
+  <!-- Ray 4: Lower left (216°) -->
+  <rect x="46" y="22" width="8" height="32" fill="#E8742F" rx="4" 
+        transform="rotate(216 50 50)"/>
+  
+  <!-- Ray 5: Upper left (288°) -->
+  <rect x="46" y="22" width="8" height="32" fill="#E8742F" rx="4" 
+        transform="rotate(288 50 50)"/>
+</svg>

@@ -138,6 +138,11 @@ export default function NameInput({ onAnalyse, loading, result }: NameInputProps
     }
   }, [result, isMobile])
 
+  useEffect(() => {
+    const maxExamples = isMobile ? MOBILE_POET_INDICES.length : EXAMPLE_POETS.length
+    setCurrentExample((prev) => (prev >= maxExamples ? 0 : prev))
+  }, [isMobile])
+
   const handleSubmit = (e: FormEvent) => {
     e.preventDefault()
     if (name.trim()) {
