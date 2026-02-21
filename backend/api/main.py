@@ -159,6 +159,7 @@ async def health_check():
     Returns 200 if healthy, 503 if unhealthy.
     """
     import time
+    import asyncio
     from google import genai
 
     start_time = time.time()
@@ -196,9 +197,12 @@ async def health_check():
         # Check 2: Test API connectivity
         client = genai.Client(api_key=api_key)
         model = os.getenv("GEMINI_MODEL", "gemini-3.1-pro-preview")
-        response = client.models.generate_content(
-            model=model,
-            contents="ok",
+        response = await asyncio.wait_for(
+            client.aio.models.generate_content(
+                model=model,
+                contents="ok",
+            ),
+            timeout=4,
         )
 
         if getattr(response, "text", None):

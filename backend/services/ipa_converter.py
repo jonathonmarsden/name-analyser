@@ -5,6 +5,7 @@ Railway deployment ready.
 """
 
 from typing import Optional, Dict, Any
+import asyncio
 import os
 import json
 import logging
@@ -20,6 +21,7 @@ class IPAConverter:
         """Initialise pronunciation converter with Gemini API client."""
         self.client = None
         self.model = os.getenv('GEMINI_MODEL', 'gemini-3.1-pro-preview')
+        self.request_timeout_seconds = float(os.getenv('GEMINI_TIMEOUT_SECONDS', '10'))
         api_key = os.getenv('GEMINI_API_KEY')
 
         if api_key and api_key != 'your_api_key_here':
@@ -82,62 +84,19 @@ class IPAConverter:
         Returns:
             Dictionary with inferred language, IPA, Macquarie notation, romanized form with diacritics, and guidance
         """
-        prompt = f"""You are an expert linguist and onomastician (name etymology specialist) helping professional ceremony readers pronounce names respectfully.
+        prompt = f"""You are an expert linguist helping ceremony readers pronounce names respectfully.
 
-CRITICAL TASK: Analyze NAME ETYMOLOGY to infer cultural/linguistic origin, even from plain Latin alphabet spelling.
+Analyze this name:
+- Name: {text}
+- Script-detected language: {language}
 
-Name to analyze: {text}
-Script detected: {language}
-
-Your task:
-1. **PRESERVE EXACT SPELLING** - Never change the name spelling (e.g., "Sylvia" must stay "Sylvia", not become "Silvia")
-
-2. **INFER LANGUAGE/CULTURAL ORIGIN** by analyzing:
-   - Name etymology and structure (e.g., "Zhang Wei" = Chinese, "Collinetti" = Italian)
-   - Romanization patterns (e.g., "Nguyen" = Vietnamese romanization, "Szcz-" = Polish)
-   - Surname + given name combinations and cultural naming conventions
-   - For mixed-heritage names (e.g., "Maria Rodriguez-Smith"), analyze each component separately
-
-3. **ADD TONE MARKS ONLY** where they aid pronunciation (ONLY for tonal languages):
-   - Chinese pinyin: Add tone marks (Zhang Wei → Zhāng Wěi)
-   - Vietnamese: Add tone marks (Nguyen Van An → Nguyễn Văn An)
-   - Thai: Add tone marks where applicable
-   - **DO NOT add** European accent marks (José, Müller, François) - these will be captured in IPA/phonetics
-
-4. **GENERATE IPA** with full phonetic detail:
-   - Use PROPER IPA SYMBOLS, not romanization (e.g., /joꜜsano akʲiko/ NOT "josano akiko")
-   - Tone marks for tonal languages (˥˧˩ etc.)
-   - Primary and secondary stress marks (ˈ ˌ)
-   - Accurate vowel quality and consonant articulation
-   - Japanese: Use IPA symbols with pitch accent marks (ꜜ for downstep)
-
-5. **GENERATE MACQUARIE DICTIONARY** phonetic respelling:
-   - Australian English approximation
-   - Use hyphen-separated syllables
-   - Mark stress with CAPITALS: "jahng-WAY", "sihl-VEE-ah"
-   - Make it speakable by an Australian English speaker
-
-6. **PRONUNCIATION GUIDANCE**:
-   - For tonal languages: Emphasize tone patterns
-   - For stress-accent languages: Note primary stress
-   - Brief, practical tips for ceremony readers
-
-7. **DETECT ROMANIZATION SYSTEM** (if applicable):
-   - Chinese: pinyin vs Wade-Giles vs Yale
-   - Note: "Wong" (Cantonese) vs "Huang" (Mandarin pinyin)
-
-8. **FLAG GENUINE AMBIGUITY** only when multiple pronunciations are equally likely:
-   - "Sarah" - could be English /ˈsɛərə/ or Arabic /ˈsaːra/
-   - "Andrea" - could be Italian /anˈdreːa/ (male) or English /ˈændriə/ (female)
-   - Use context clues (surname, full name pattern) to resolve if possible
-
-CRITICAL EXAMPLES:
-- Input: "Zhang Wei" → Output: "Zhāng Wěi" (PRESERVE "Zhang Wei" spelling, ADD pinyin tones)
-- Input: "Nguyen Van An" → Output: "Nguyễn Văn An" (ADD Vietnamese tones)
-- Input: "Sylvia Collinetti" → Output: "Sylvia Collinetti" (DO NOT change to "Silvia")
-- Input: "Jose Garcia" → Output: "Jose Garcia" (DO NOT add José accent - not a tone mark)
-- Input: "李明" → Output: "Lǐ Míng" (Chinese script detected, add pinyin tones)
-- Input: "Maria Rodriguez-Smith" → Mixed origin: Spanish + English (pronounce each component in its origin language)
+Rules:
+1. Preserve exact spelling in `name_with_diacritics` except adding tone marks for tonal languages.
+2. Infer likely linguistic/cultural origin from name patterns.
+3. Provide accurate IPA.
+4. Provide Australian-English-friendly Macquarie style respelling with stress in CAPS.
+5. Keep guidance practical and brief.
+6. Flag ambiguity only when genuinely plausible.
 
 Respond in JSON format:
 {{
@@ -149,18 +108,22 @@ Respond in JSON format:
   "guidance": "Practical pronunciation tip emphasizing tones/stress",
   "tone_marks_added": true|false,
   "ambiguity": null|{{"note": "Could be X or Y. Pronunciation shown assumes X based on [reason]."}},
-  "cultural_notes": "Brief (1-2 sentences) etymology, meaning, regional origin, or cultural significance. E.g., 'Common surname in northern China, literally means north island' or 'Italian diminutive surname from the Tuscany region, means little bird' or 'Vietnamese given name meaning spring, commonly used for girls born in spring'. Be specific and interesting, avoid generic statements."
+  "cultural_notes": "Brief 1 sentence etymology or origin note"
 }}
 
 Return ONLY the JSON, no other text."""
 
         try:
-            response = await self.client.aio.models.generate_content(
-                model=self.model,
-                contents=prompt,
-                config=genai.types.GenerateContentConfig(
-                    response_mime_type="application/json",
+            response = await asyncio.wait_for(
+                self.client.aio.models.generate_content(
+                    model=self.model,
+                    contents=prompt,
+                    config=genai.types.GenerateContentConfig(
+                        response_mime_type="application/json",
+                        max_output_tokens=350,
+                    ),
                 ),
+                timeout=self.request_timeout_seconds,
             )
 
             response_text = getattr(response, "text", None)
@@ -168,17 +131,14 @@ Return ONLY the JSON, no other text."""
                 raise Exception("Empty response from Gemini API")
             response_text = response_text.strip()
 
-            # Strip markdown code blocks if present
             if response_text.startswith('```'):
-                # Remove ```json or ``` at the start and ``` at the end
                 lines = response_text.split('\n')
                 if lines[0].startswith('```'):
-                    lines = lines[1:]  # Remove first line with ```json
+                    lines = lines[1:]
                 if lines and lines[-1].strip() == '```':
-                    lines = lines[:-1]  # Remove last line with ```
+                    lines = lines[:-1]
                 response_text = '\n'.join(lines).strip()
 
-            # Parse JSON response
             try:
                 result = json.loads(response_text)
                 return {
@@ -193,10 +153,11 @@ Return ONLY the JSON, no other text."""
                     'cultural_notes': result.get('cultural_notes', '')
                 }
             except json.JSONDecodeError:
-                # If JSON parsing fails, try to extract information
                 logger.error(f"Could not parse Gemini response as JSON: {response_text[:200]}")
                 return self._simplified_analysis(text, language)
 
+        except asyncio.TimeoutError:
+            raise Exception(f"Gemini API timeout after {self.request_timeout_seconds:.1f}s")
         except Exception as e:
             raise Exception(f"Gemini API error: {str(e)}")
 
