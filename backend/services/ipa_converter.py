@@ -1,5 +1,5 @@
 """
-Pronunciation analysis service using Claude API.
+Pronunciation analysis service using Gemini API.
 Generates accurate IPA and Macquarie Dictionary phonetic notation for names.
 Railway deployment ready.
 """
@@ -8,34 +8,35 @@ from typing import Optional, Dict, Any
 import os
 import json
 import logging
-from anthropic import Anthropic
+from google import genai
 
 logger = logging.getLogger(__name__)
 
 
 class IPAConverter:
-    """Converts names to IPA and Macquarie phonetic notation using Claude API."""
+    """Converts names to IPA and Macquarie phonetic notation using Gemini API."""
 
     def __init__(self):
-        """Initialise pronunciation converter with Claude API client."""
+        """Initialise pronunciation converter with Gemini API client."""
         self.client = None
-        api_key = os.getenv('ANTHROPIC_API_KEY')
+        self.model = os.getenv('GEMINI_MODEL', 'gemini-3.1-pro-preview')
+        api_key = os.getenv('GEMINI_API_KEY')
 
         if api_key and api_key != 'your_api_key_here':
             try:
-                self.client = Anthropic(api_key=api_key)
-                logger.info("Claude API initialized for pronunciation analysis")
+                self.client = genai.Client(api_key=api_key)
+                logger.info("Gemini API initialized for pronunciation analysis")
             except Exception as e:
-                logger.warning(f"Could not initialize Claude API: {e}")
+                logger.warning(f"Could not initialize Gemini API: {e}")
                 logger.info("Falling back to simplified notation")
         else:
-            logger.info("ANTHROPIC_API_KEY not set")
+            logger.info("GEMINI_API_KEY not set")
             logger.info("Add your API key to backend/.env for accurate IPA and Macquarie notation")
             logger.info("Run: ./add-api-key.sh")
 
-    def analyse_pronunciation(self, text: str, language: str) -> Dict[str, Any]:
+    async def analyse_pronunciation(self, text: str, language: str) -> Dict[str, Any]:
         """
-        Analyse name pronunciation using Claude API.
+        Analyse name pronunciation using Gemini API.
 
         Args:
             text: The name to analyse
@@ -51,28 +52,28 @@ class IPAConverter:
                 'guidance': ''
             }
 
-        # Try Claude API analysis if available
+        # Try Gemini API analysis if available
         if self.client:
             try:
-                return self._analyse_with_claude(text, language)
+                return await self._analyse_with_gemini(text, language)
             except Exception as e:
-                logger.error(f"Error using Claude API: {e}")
+                logger.error(f"Error using Gemini API: {e}")
                 logger.info("Falling back to simplified notation")
 
         # Fallback to simplified notation
         return self._simplified_analysis(text, language)
 
-    def convert(self, text: str, language: str) -> str:
+    async def convert(self, text: str, language: str) -> str:
         """
         Legacy method for backwards compatibility.
         Returns just the IPA notation.
         """
-        result = self.analyse_pronunciation(text, language)
+        result = await self.analyse_pronunciation(text, language)
         return result.get('ipa', '')
 
-    def _analyse_with_claude(self, text: str, language: str) -> Dict[str, Any]:
+    async def _analyse_with_gemini(self, text: str, language: str) -> Dict[str, Any]:
         """
-        Use Claude API for comprehensive pronunciation analysis with language inference.
+        Use Gemini API for comprehensive pronunciation analysis with language inference.
 
         Args:
             text: The name to analyse
@@ -154,16 +155,18 @@ Respond in JSON format:
 Return ONLY the JSON, no other text."""
 
         try:
-            message = self.client.messages.create(
-                model="claude-haiku-4-5-20251001",
-                max_tokens=500,
-                messages=[
-                    {"role": "user", "content": prompt}
-                ]
+            response = await self.client.aio.models.generate_content(
+                model=self.model,
+                contents=prompt,
+                config=genai.types.GenerateContentConfig(
+                    response_mime_type="application/json",
+                ),
             )
 
-            # Extract the response
-            response_text = message.content[0].text.strip()
+            response_text = getattr(response, "text", None)
+            if not response_text:
+                raise Exception("Empty response from Gemini API")
+            response_text = response_text.strip()
 
             # Strip markdown code blocks if present
             if response_text.startswith('```'):
@@ -191,15 +194,15 @@ Return ONLY the JSON, no other text."""
                 }
             except json.JSONDecodeError:
                 # If JSON parsing fails, try to extract information
-                logger.error(f"Could not parse Claude response as JSON: {response_text[:200]}")
+                logger.error(f"Could not parse Gemini response as JSON: {response_text[:200]}")
                 return self._simplified_analysis(text, language)
 
         except Exception as e:
-            raise Exception(f"Claude API error: {str(e)}")
+            raise Exception(f"Gemini API error: {str(e)}")
 
     def _simplified_analysis(self, text: str, language: str) -> Dict[str, Any]:
         """
-        Provide simplified analysis without Claude API.
+        Provide simplified analysis without Gemini API.
 
         Args:
             text: The text to analyse
@@ -211,5 +214,5 @@ Return ONLY the JSON, no other text."""
         return {
             'ipa': f"[Add API key for accurate IPA]",
             'macquarie': f"[Add API key for Macquarie notation]",
-            'guidance': f"Set ANTHROPIC_API_KEY in backend/.env for accurate pronunciation analysis. Run: ./add-api-key.sh"
+            'guidance': f"Set GEMINI_API_KEY in backend/.env for accurate pronunciation analysis. Run: ./add-api-key.sh"
         }

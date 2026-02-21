@@ -14,7 +14,7 @@ Professional name readers for University Graduation ceremonies who need to prono
 Unlike traditional script-based detection, this system **analyzes name etymology** to infer the cultural and linguistic origin:
 
 - **Input**: "Zhang Wei" (plain Latin alphabet, no diacritics)
-- **Analysis**: Claude AI analyzes name structure and etymology
+- **Analysis**: Gemini AI analyzes name structure and etymology
 - **Inference**: Identifies as Chinese origin
 - **Output**: "Zhāng Wěi" (with pinyin tone marks)
 
@@ -38,7 +38,7 @@ Unlike traditional script-based detection, this system **analyzes name etymology
 - **Pronunciation Guidance**: Specific tips on tones, stress, and cultural context
 
 ### Language & Cultural Analysis
-- **Etymology-based language inference** using Claude AI (primary method)
+- **Etymology-based language inference** using Gemini AI (primary method)
 - **Unicode script detection** for non-Latin scripts (fallback method)
 - Cultural background insights
 - Name structure analysis (given name/family name order)
@@ -67,7 +67,7 @@ Unlike traditional script-based detection, this system **analyzes name etymology
 
 ### Backend
 - **Python FastAPI** - High-performance async API framework
-- **Anthropic Claude 3.5 Sonnet** - Etymology analysis and pronunciation generation
+- **Google Gemini** - Etymology analysis and pronunciation generation
 - **slowapi** - Rate limiting (10 requests/minute per IP)
 - **Unicode-based script detection** - Fallback for non-Latin scripts
 - **Structured logging** - Production-ready error tracking
@@ -84,7 +84,7 @@ Unlike traditional script-based detection, this system **analyzes name etymology
 ### Key Architecture Decisions
 
 1. **Dual Language Detection System**:
-   - **Primary**: Claude AI etymology analysis (for Latin-alphabet names)
+  - **Primary**: Gemini AI etymology analysis (for Latin-alphabet names)
    - **Fallback**: Unicode script detection (for Chinese characters, Devanagari, etc.)
 
 2. **No Database Required**: Stateless API design for simplicity and cost-efficiency
@@ -106,7 +106,7 @@ name-analyser/
 │   │   └── main.py       # FastAPI routes and CORS configuration
 │   └── services/
 │       ├── language_detector.py  # Unicode script detection (fallback)
-│       └── ipa_converter.py      # Claude AI etymology analysis (primary)
+│       └── ipa_converter.py      # Gemini AI etymology analysis (primary)
 └── docs/                  # Deployment and setup guides
 ```
 
@@ -119,7 +119,7 @@ name-analyser/
   "ipa": "tʂɑŋ˥ weɪ˨˩",                   // IPA with tone marks
   "macquarie": "jahng way",               // Australian phonetic respelling
   "pronunciation_guidance": "First syllable 'Zhang' has high level tone...",
-  "confidence": 1.0,                      // 1.0 for Claude inference
+  "confidence": 1.0,                      // 1.0 for Gemini inference
   "language_info": {
     "family_name_first": true,
     "note": "Chinese names typically have family name first..."
@@ -132,7 +132,7 @@ name-analyser/
 ### Prerequisites
 - Python 3.9+
 - Node.js 18+
-- Anthropic API key (sign up at [console.anthropic.com](https://console.anthropic.com))
+- Gemini API key (sign up at [ai.google.dev](https://ai.google.dev/gemini-api))
 
 ### Local Development
 
@@ -149,8 +149,8 @@ python -m venv venv
 source venv/bin/activate  # On Windows: venv\Scripts\activate
 pip install -r requirements.txt
 
-# Add your Anthropic API key
-echo "ANTHROPIC_API_KEY=your_key_here" > .env
+# Add your Gemini API key
+echo "GEMINI_API_KEY=your_key_here" > .env
 
 # Run the server
 cd api

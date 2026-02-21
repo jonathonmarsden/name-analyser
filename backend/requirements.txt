@@ -1,5 +1,5 @@
 annotated-types==0.7.0
-anthropic==0.69.0
+google-genai==0.7.0
 anyio==4.11.0
 certifi==2025.10.5
 charset-normalizer==3.4.3
@@ -52,5 +52,5 @@ urllib3==2.5.0
 uvicorn==0.27.0
 uvloop==0.21.0
 watchfiles==1.1.0
-websockets==15.0.1
+websockets>=13.0,<15.0
 wrapt==1.17.3

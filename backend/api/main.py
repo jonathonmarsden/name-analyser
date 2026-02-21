@@ -3,6 +3,7 @@ FastAPI application for Name Pronunciation Analyser.
 """
 
 from fastapi import FastAPI, HTTPException, Request
+from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field, field_validator
 from typing import Optional
@@ -112,7 +113,7 @@ class NameAnalysisResponse(BaseModel):
     macquarie: str = ""
     pronunciation_guidance: str = ""
     confidence: float
-    language_info: dict = {}
+    language_info: dict = Field(default_factory=dict)
     romanization_system: Optional[str] = None
     tone_marks_added: bool = False
     ambiguity: Optional[dict] = None
@@ -153,12 +154,12 @@ async def health_check():
 
     Checks:
     - API key is configured
-    - Claude API is accessible
+    - Gemini API is accessible
 
     Returns 200 if healthy, 503 if unhealthy.
     """
     import time
-    from anthropic import Anthropic, APIError
+    from google import genai
 
     start_time = time.time()
 
@@ -174,37 +175,33 @@ async def health_check():
 
     try:
         # Check 1: API key is configured
-        api_key = os.getenv("ANTHROPIC_API_KEY")
+        api_key = os.getenv("GEMINI_API_KEY")
         if not api_key:
             result["status"] = "unhealthy"
             result["checks"]["api_configured"] = False
-            result["checks"]["error"] = "ANTHROPIC_API_KEY not configured"
+            result["checks"]["error"] = "GEMINI_API_KEY not configured"
 
             # Send alert
             await send_alert({
                 "app": "Name Analyser",
                 "url": "https://names.jonathonmarsden.com",
-                "error": "ANTHROPIC_API_KEY not configured",
+                "error": "GEMINI_API_KEY not configured",
                 "timestamp": result["timestamp"]
             })
 
-            return result
+            return JSONResponse(result, status_code=503)
 
         result["checks"]["api_configured"] = True
 
         # Check 2: Test API connectivity
-        anthropic = Anthropic(api_key=api_key)
-
-        response = anthropic.messages.create(
-            model="claude-haiku-4-5-20251001",  # Latest Haiku model
-            max_tokens=10,
-            messages=[{
-                "role": "user",
-                "content": "ok"
-            }]
+        client = genai.Client(api_key=api_key)
+        model = os.getenv("GEMINI_MODEL", "gemini-3.1-pro-preview")
+        response = client.models.generate_content(
+            model=model,
+            contents="ok",
         )
 
-        if response.content and len(response.content) > 0:
+        if getattr(response, "text", None):
             result["checks"]["api_accessible"] = True
             result["status"] = "healthy"
         else:
@@ -213,7 +210,7 @@ async def health_check():
         duration = (time.time() - start_time) * 1000
         result["response_time_ms"] = int(duration)
 
-        return result
+        return JSONResponse(result, status_code=200)
 
     except Exception as e:
         result["status"] = "unhealthy"
@@ -247,7 +244,7 @@ async def health_check():
 
         logger.error(f"Health check failed: {error_message}")
 
-        return result
+        return JSONResponse(result, status_code=503)
 
 
 async def send_alert(payload: dict):
@@ -298,7 +295,7 @@ async def analyse_name(request: Request, name_request: NameAnalysisRequest):
         script_language, script_confidence = language_detector.detect(name)
 
         # Analyse pronunciation - Claude will infer the actual language from etymology
-        pronunciation = ipa_converter.analyse_pronunciation(name, script_language)
+        pronunciation = await ipa_converter.analyse_pronunciation(name, script_language)
 
         # Use Claude's inferred language if available, otherwise fall back to script detection
         inferred_language = pronunciation.get('inferred_language', script_language)

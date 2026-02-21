@@ -26,7 +26,7 @@ pip install -r requirements.txt
 if [ ! -f ".env" ]; then
     echo "Creating .env file from template..."
     cp .env.template .env
-    echo "⚠️  Please edit backend/.env and add your ANTHROPIC_API_KEY"
+    echo "⚠️  Please edit backend/.env and add your GEMINI_API_KEY"
 fi
 
 cd ..
@@ -52,7 +52,7 @@ echo ""
 echo "✅ Setup complete!"
 echo ""
 echo "Next steps:"
-echo "1. Edit backend/.env and add your Anthropic API key (for Phase 2)"
+echo "1. Edit backend/.env and add your Gemini API key (for Phase 2)"
 echo "2. Start the backend: ./start-backend.sh"
 echo "3. Start the frontend: ./start-frontend.sh"
 echo "4. Open http://localhost:3000 in your browser"
