@@ -8,6 +8,8 @@ from typing import Optional, Dict, Any
 import asyncio
 import os
 import logging
+import json
+import re
 from google import genai
 
 logger = logging.getLogger(__name__)
@@ -169,8 +171,35 @@ GUIDANCE: <short guidance>
             macquarie = line_value("MACQUARIE")
             guidance = line_value("GUIDANCE")
 
+            # Try JSON extraction if model returned JSON instead of tagged lines
+            if not ipa and text_out.startswith("{"):
+                try:
+                    payload = json.loads(text_out)
+                    inferred_language = payload.get("inferred_language") or payload.get("language") or inferred_language
+                    display_name = payload.get("name_with_diacritics") or payload.get("display_name") or display_name
+                    ipa = payload.get("ipa") or ipa
+                    macquarie = payload.get("macquarie") or macquarie
+                    guidance = payload.get("guidance") or payload.get("pronunciation_guidance") or guidance
+                except Exception:
+                    pass
+
+            # Try regex extraction from free text
             if not ipa:
-                return None
+                ipa_match = re.search(r"/(?:[^/\n]{1,120})/", text_out)
+                if ipa_match:
+                    ipa = ipa_match.group(0)
+            if not macquarie:
+                macquarie_match = re.search(r"(?i)macquarie\s*[:\-]\s*(.+)", text_out)
+                if macquarie_match:
+                    macquarie = macquarie_match.group(1).strip()
+            if not guidance:
+                guidance_match = re.search(r"(?i)guidance\s*[:\-]\s*(.+)", text_out)
+                if guidance_match:
+                    guidance = guidance_match.group(1).strip()
+
+            if not ipa:
+                simplified = "-".join(part for part in text.split() if part).lower()
+                ipa = f"/{simplified}/" if simplified else "/na/"
 
             return {
                 'inferred_language': inferred_language,
