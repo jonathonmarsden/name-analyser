@@ -132,11 +132,15 @@ Return only JSON matching the schema.
                         timeout=self.request_timeout_seconds,
                     )
 
-                    response_text = (getattr(response, "text", "") or "").strip()
-                    if not response_text:
-                        raise ValueError("Empty response from Gemini API")
+                    parsed_payload = getattr(response, "parsed", None)
+                    if parsed_payload is not None:
+                        parsed = PronunciationOutput.model_validate(parsed_payload)
+                    else:
+                        response_text = (getattr(response, "text", "") or "").strip()
+                        if not response_text:
+                            raise ValueError("Empty response from Gemini API")
+                        parsed = PronunciationOutput.model_validate_json(response_text)
 
-                    parsed = PronunciationOutput.model_validate_json(response_text)
                     normalized = self._normalize_output(parsed, text, language)
                     normalized = self._complete_output(normalized, text)
 
