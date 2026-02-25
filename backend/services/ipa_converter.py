@@ -135,7 +135,44 @@ class IPAConverter:
 
             if not ipa and not macquarie and not guidance:
                 logger.error(f"Could not parse Gemini tagged response: {response_text[:400]}")
-                return self._simplified_analysis(text, language)
+
+                retry_prompt = f"""Give pronunciation for this name: {text}
+Return exactly 3 lines, no extra text:
+IPA: <ipa>
+MACQUARIE: <australian-friendly pronunciation>
+GUIDANCE: <very brief tip>
+"""
+
+                retry_response = await asyncio.wait_for(
+                    self.client.aio.models.generate_content(
+                        model=self.model,
+                        contents=retry_prompt,
+                        config=genai.types.GenerateContentConfig(
+                            max_output_tokens=180,
+                            temperature=0.1,
+                        ),
+                    ),
+                    timeout=min(self.request_timeout_seconds, 6),
+                )
+
+                retry_text = (getattr(retry_response, "text", "") or "").strip()
+                if retry_text:
+                    ipa = extract_value('IPA') if ipa else ''
+                    macquarie = extract_value('MACQUARIE') if macquarie else ''
+                    guidance = extract_value('GUIDANCE') if guidance else ''
+
+                    if not ipa:
+                        ipa_match = re.search(r'^IPA\s*:\s*(.+)$', retry_text, re.MULTILINE)
+                        ipa = ipa_match.group(1).strip() if ipa_match else ''
+                    if not macquarie:
+                        mac_match = re.search(r'^MACQUARIE\s*:\s*(.+)$', retry_text, re.MULTILINE)
+                        macquarie = mac_match.group(1).strip() if mac_match else ''
+                    if not guidance:
+                        guide_match = re.search(r'^GUIDANCE\s*:\s*(.+)$', retry_text, re.MULTILINE)
+                        guidance = guide_match.group(1).strip() if guide_match else ''
+
+                if not ipa and not macquarie and not guidance:
+                    return self._simplified_analysis(text, language)
 
             return {
                 'inferred_language': inferred_language,
