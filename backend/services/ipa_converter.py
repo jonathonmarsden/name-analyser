@@ -122,7 +122,7 @@ Return only JSON matching the schema.
                         contents=prompt,
                         config=genai.types.GenerateContentConfig(
                             response_mime_type="application/json",
-                            response_json_schema=PronunciationOutput.model_json_schema(),
+                            response_schema=PronunciationOutput,
                             max_output_tokens=500,
                         ),
                     ),
