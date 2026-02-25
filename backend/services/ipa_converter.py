@@ -22,7 +22,8 @@ class IPAConverter:
         self.model = os.getenv('GEMINI_MODEL', 'gemini-2.5-pro')
         fallback_models_env = os.getenv('GEMINI_MODEL_FALLBACKS', 'gemini-2.5-flash,gemini-2.5-flash-lite')
         self.fallback_models = [m.strip() for m in fallback_models_env.split(',') if m.strip()]
-        self.request_timeout_seconds = float(os.getenv('GEMINI_TIMEOUT_SECONDS', '10'))
+        self.request_timeout_seconds = float(os.getenv('GEMINI_TIMEOUT_SECONDS', '6'))
+        self.max_models = int(os.getenv('GEMINI_MAX_MODELS', '2'))
         api_key = os.getenv('GEMINI_API_KEY')
 
         if api_key and api_key != 'your_api_key_here':
@@ -85,7 +86,7 @@ class IPAConverter:
         Returns:
             Dictionary with inferred language, IPA, Macquarie notation, romanized form with diacritics, and guidance
         """
-        attempts = 2
+        attempts = 1
         last_error = None
 
         for model in self._candidate_models():
@@ -223,7 +224,7 @@ GUIDANCE: <short guidance>
             if model and model not in seen:
                 seen.add(model)
                 unique_models.append(model)
-        return unique_models
+        return unique_models[:max(self.max_models, 1)]
 
     def _complete_output(self, output: Dict[str, Any], original_name: str) -> Dict[str, Any]:
         completed = dict(output)

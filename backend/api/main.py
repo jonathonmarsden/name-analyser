@@ -299,7 +299,7 @@ async def analyse_name(request: Request, name_request: NameAnalysisRequest):
         # Analyse pronunciation - Claude will infer the actual language from etymology
         pronunciation = await ipa_converter.analyse_pronunciation(name, script_language)
 
-        # Use Claude's inferred language if available, otherwise fall back to script detection
+        # Use model-inferred language if available, otherwise fall back to script detection
         inferred_language = pronunciation.get('inferred_language', script_language)
 
         # Get language information based on inferred language
@@ -310,18 +310,26 @@ async def analyse_name(request: Request, name_request: NameAnalysisRequest):
 
         logger.info(f"Successfully analyzed: {name[:50]} -> {inferred_language}")
 
+        cultural_notes = pronunciation.get('cultural_notes', '')
+        fallback_used = 'fallback' in cultural_notes.lower()
+        confidence = script_confidence
+        if pronunciation.get('inferred_language') and not fallback_used:
+            confidence = 1.0
+        elif fallback_used:
+            confidence = min(script_confidence, 0.5)
+
         return NameAnalysisResponse(
             name=display_name,  # Show name with diacritics
             language=inferred_language,  # Use Claude's inference
             ipa=pronunciation.get('ipa', ''),
             macquarie=pronunciation.get('macquarie', ''),
             pronunciation_guidance=pronunciation.get('guidance', ''),
-            confidence=1.0 if pronunciation.get('inferred_language') else script_confidence,
+            confidence=confidence,
             language_info=language_info,
             romanization_system=pronunciation.get('romanization_system'),
             tone_marks_added=pronunciation.get('tone_marks_added', False),
             ambiguity=pronunciation.get('ambiguity'),
-            cultural_notes=pronunciation.get('cultural_notes', '')
+            cultural_notes=cultural_notes
         )
 
     except HTTPException:
