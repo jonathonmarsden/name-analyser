@@ -9,23 +9,8 @@ import asyncio
 import os
 import logging
 from google import genai
-from pydantic import BaseModel, Field, ValidationError
 
 logger = logging.getLogger(__name__)
-
-
-class PronunciationOutput(BaseModel):
-    inferred_language: str = Field(default="")
-    name_with_diacritics: str = Field(default="")
-    romanization_system: Optional[str] = Field(default=None)
-    ipa: str = Field(default="")
-    macquarie: str = Field(default="")
-    guidance: str = Field(default="")
-    tone_marks_added: bool = Field(default=False)
-    ambiguity: Optional[dict] = Field(default=None)
-    cultural_notes: str = Field(default="")
-
-
 class IPAConverter:
     """Converts names to IPA and Macquarie phonetic notation using Gemini API."""
 
@@ -98,71 +83,28 @@ class IPAConverter:
         Returns:
             Dictionary with inferred language, IPA, Macquarie notation, romanized form with diacritics, and guidance
         """
-        prompt = f"""You are an expert linguist helping ceremony readers pronounce names respectfully.
-
-Analyze this name:
-- Name: {text}
-- Script-detected language: {language}
-
-Rules:
-1. Preserve exact spelling in name_with_diacritics except tonal marks for tonal languages.
-2. Provide full IPA.
-3. Provide Macquarie-style respelling (speakable by Australian English speakers).
-4. guidance must be practical and short.
-5. If uncertain, choose best-likely pronunciation and include note in cultural_notes.
-Return only JSON matching the schema.
-"""
-
         attempts = 2
         last_error = None
 
         for model in self._candidate_models():
             for attempt in range(1, attempts + 1):
                 try:
-                    response = await asyncio.wait_for(
-                        self.client.aio.models.generate_content(
-                            model=model,
-                            contents=prompt,
-                            config=genai.types.GenerateContentConfig(
-                                response_mime_type="application/json",
-                                response_schema=PronunciationOutput,
-                                max_output_tokens=500,
-                            ),
-                        ),
-                        timeout=self.request_timeout_seconds,
-                    )
-
-                    parsed_payload = getattr(response, "parsed", None)
-                    if parsed_payload is not None:
-                        parsed = PronunciationOutput.model_validate(parsed_payload)
+                    minimal = await self._analyse_with_minimal_prompt(text, language, model)
+                    if minimal:
+                        completed = self._complete_output(minimal, text)
+                        if self._is_quality_output(completed):
+                            return completed
+                        last_error = ValueError("Minimal output failed quality gate")
+                        logger.warning(f"Gemini minimal output quality failed for {model} (attempt {attempt}/{attempts})")
                     else:
-                        response_text = (getattr(response, "text", "") or "").strip()
-                        if not response_text:
-                            raise ValueError("Empty response from Gemini API")
-                        parsed = PronunciationOutput.model_validate_json(response_text)
-
-                    normalized = self._normalize_output(parsed, text, language)
-                    normalized = self._complete_output(normalized, text)
-
-                    if self._is_quality_output(normalized):
-                        return normalized
-
-                    last_error = ValueError("Schema output passed, but quality gate failed")
-                    logger.warning(f"Gemini output quality gate failed for {model} (attempt {attempt}/{attempts})")
-
-                except (ValidationError, ValueError) as e:
-                    last_error = e
-                    logger.warning(f"Gemini structured parse failed for {model} (attempt {attempt}/{attempts}): {e}")
+                        last_error = ValueError("Empty/invalid minimal output")
+                        logger.warning(f"Gemini minimal output empty for {model} (attempt {attempt}/{attempts})")
                 except asyncio.TimeoutError as e:
                     last_error = e
                     logger.warning(f"Gemini timeout for {model} (attempt {attempt}/{attempts})")
                 except Exception as e:
                     last_error = e
                     logger.warning(f"Gemini call failed for {model} (attempt {attempt}/{attempts}): {e}")
-
-            minimal = await self._analyse_with_minimal_prompt(text, language, model)
-            if minimal:
-                return self._complete_output(minimal, text)
 
         logger.error(f"Gemini analysis failed after retries: {last_error}")
         return self._fallback_from_name(text, language)
@@ -182,25 +124,6 @@ Return only JSON matching the schema.
             'ipa': f"[Add API key for accurate IPA]",
             'macquarie': f"[Add API key for Macquarie notation]",
             'guidance': f"Set GEMINI_API_KEY in backend/.env for accurate pronunciation analysis. Run: ./add-api-key.sh"
-        }
-
-    def _normalize_output(self, parsed: PronunciationOutput, text: str, language: str) -> Dict[str, Any]:
-        inferred_language = (parsed.inferred_language or '').strip() or language
-        name_with_diacritics = (parsed.name_with_diacritics or '').strip() or text
-        romanization_system = (parsed.romanization_system or '').strip() or None
-        if romanization_system and romanization_system.lower() in ('none', 'null', 'n/a'):
-            romanization_system = None
-
-        return {
-            'inferred_language': inferred_language,
-            'name_with_diacritics': name_with_diacritics,
-            'romanization_system': romanization_system,
-            'ipa': (parsed.ipa or '').strip(),
-            'macquarie': (parsed.macquarie or '').strip(),
-            'guidance': (parsed.guidance or '').strip(),
-            'tone_marks_added': bool(parsed.tone_marks_added),
-            'ambiguity': parsed.ambiguity,
-            'cultural_notes': (parsed.cultural_notes or '').strip(),
         }
 
     def _is_quality_output(self, output: Dict[str, Any]) -> bool:
