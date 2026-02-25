@@ -1,6 +1,6 @@
 """Services package for name analysis."""
 
 from .language_detector import LanguageDetector
-from .ipa_converter import IPAConverter
+from .analysis_service import AnalysisService
 
-__all__ = ['LanguageDetector', 'IPAConverter']
+__all__ = ['LanguageDetector', 'AnalysisService']

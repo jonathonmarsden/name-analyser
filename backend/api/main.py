@@ -19,7 +19,7 @@ from slowapi.errors import RateLimitExceeded
 # Add parent directory to path to import services
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from services import LanguageDetector, IPAConverter
+from services import LanguageDetector, AnalysisService
 
 # Load environment variables
 load_dotenv()
@@ -61,7 +61,7 @@ app.add_middleware(
 
 # Initialise services
 language_detector = LanguageDetector()
-ipa_converter = IPAConverter()
+analysis_service = AnalysisService(language_detector)
 
 
 # Request/Response models
@@ -113,6 +113,8 @@ class NameAnalysisResponse(BaseModel):
     macquarie: str = ""
     pronunciation_guidance: str = ""
     confidence: float
+    quality: str = "high"
+    source: str = "llm"
     language_info: dict = Field(default_factory=dict)
     romanization_system: Optional[str] = None
     tone_marks_added: bool = False
@@ -296,17 +298,17 @@ async def analyse_name(request: Request, name_request: NameAnalysisRequest):
         # Detect script (for rare cases with Chinese characters, etc.)
         script_language, script_confidence = language_detector.detect(name)
 
-        # Analyse pronunciation - Claude will infer the actual language from etymology
-        pronunciation = await ipa_converter.analyse_pronunciation(name, script_language)
+        # Analyse pronunciation using LLM-backed pipeline
+        analysis = await analysis_service.analyse(name)
 
         # Use model-inferred language if available, otherwise fall back to script detection
-        inferred_language = pronunciation.get('inferred_language', script_language)
+        inferred_language = analysis.inferred_language or script_language
 
         # Get language information based on inferred language
         language_info = language_detector.get_language_info(inferred_language)
 
         # Use name_with_diacritics if provided by Claude, otherwise use original
-        display_name = pronunciation.get('name_with_diacritics', name)
+        display_name = analysis.name_with_diacritics or name
 
         logger.info(f"Successfully analyzed: {name[:50]} -> {inferred_language}")
 
@@ -321,15 +323,17 @@ async def analyse_name(request: Request, name_request: NameAnalysisRequest):
         return NameAnalysisResponse(
             name=display_name,  # Show name with diacritics
             language=inferred_language,  # Use Claude's inference
-            ipa=pronunciation.get('ipa', ''),
-            macquarie=pronunciation.get('macquarie', ''),
-            pronunciation_guidance=pronunciation.get('guidance', ''),
-            confidence=confidence,
+            ipa=analysis.ipa,
+            macquarie=analysis.macquarie,
+            pronunciation_guidance=analysis.guidance,
+            confidence=analysis.confidence,
+            quality=analysis.quality,
+            source=analysis.source,
             language_info=language_info,
-            romanization_system=pronunciation.get('romanization_system'),
-            tone_marks_added=pronunciation.get('tone_marks_added', False),
-            ambiguity=pronunciation.get('ambiguity'),
-            cultural_notes=cultural_notes
+            romanization_system=None,
+            tone_marks_added=False,
+            ambiguity=analysis.ambiguity,
+            cultural_notes=analysis.cultural_notes
         )
 
     except HTTPException:
