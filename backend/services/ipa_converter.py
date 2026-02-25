@@ -152,6 +152,10 @@ Return only JSON matching the schema.
                 last_error = e
                 logger.warning(f"Gemini call failed (attempt {attempt}/{attempts}): {e}")
 
+        minimal = await self._analyse_with_minimal_prompt(text, language)
+        if minimal:
+            return minimal
+
         logger.error(f"Gemini analysis failed after retries: {last_error}")
         return self._fallback_from_name(text, language)
 
@@ -193,6 +197,63 @@ Return only JSON matching the schema.
 
     def _is_quality_output(self, output: Dict[str, Any]) -> bool:
         return bool(output.get('ipa') and output.get('macquarie') and output.get('guidance'))
+
+    async def _analyse_with_minimal_prompt(self, text: str, language: str) -> Optional[Dict[str, Any]]:
+        prompt = f"""Give pronunciation fields for this name.
+Name: {text}
+Language hint: {language}
+
+Return exactly these lines:
+LANGUAGE: <language>
+DISPLAY_NAME: <name>
+IPA: <ipa>
+MACQUARIE: <australian-friendly pronunciation>
+GUIDANCE: <short guidance>
+"""
+
+        try:
+            response = await asyncio.wait_for(
+                self.client.aio.models.generate_content(
+                    model=self.model,
+                    contents=prompt,
+                    config=genai.types.GenerateContentConfig(
+                        max_output_tokens=220,
+                    ),
+                ),
+                timeout=min(self.request_timeout_seconds, 7),
+            )
+            text_out = (getattr(response, "text", "") or "").strip()
+            if not text_out:
+                return None
+
+            def line_value(key: str) -> str:
+                for line in text_out.splitlines():
+                    if line.upper().startswith(f"{key}:"):
+                        return line.split(":", 1)[1].strip()
+                return ""
+
+            inferred_language = line_value("LANGUAGE") or language
+            display_name = line_value("DISPLAY_NAME") or text
+            ipa = line_value("IPA")
+            macquarie = line_value("MACQUARIE")
+            guidance = line_value("GUIDANCE")
+
+            if not ipa:
+                return None
+
+            return {
+                'inferred_language': inferred_language,
+                'name_with_diacritics': display_name,
+                'romanization_system': None,
+                'ipa': ipa,
+                'macquarie': macquarie or text,
+                'guidance': guidance or "Pronounce slowly and confirm preferred pronunciation with the person.",
+                'tone_marks_added': False,
+                'ambiguity': None,
+                'cultural_notes': "Generated via minimal fallback prompt due structured JSON truncation."
+            }
+        except Exception:
+            return None
 
     def _fallback_from_name(self, text: str, language: str) -> Dict[str, Any]:
         simplified = "-".join(part for part in text.split() if part).lower()
