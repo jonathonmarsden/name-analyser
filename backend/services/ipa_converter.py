@@ -8,10 +8,22 @@ from typing import Optional, Dict, Any
 import asyncio
 import os
 import logging
-import re
 from google import genai
+from pydantic import BaseModel, Field, ValidationError
 
 logger = logging.getLogger(__name__)
+
+
+class PronunciationOutput(BaseModel):
+    inferred_language: str = Field(default="")
+    name_with_diacritics: str = Field(default="")
+    romanization_system: Optional[str] = Field(default=None)
+    ipa: str = Field(default="")
+    macquarie: str = Field(default="")
+    guidance: str = Field(default="")
+    tone_marks_added: bool = Field(default=False)
+    ambiguity: Optional[dict] = Field(default=None)
+    cultural_notes: str = Field(default="")
 
 
 class IPAConverter:
@@ -86,110 +98,62 @@ class IPAConverter:
         """
         prompt = f"""You are an expert linguist helping ceremony readers pronounce names respectfully.
 
-    Analyze this name:
-    - Name: {text}
-    - Script-detected language: {language}
+Analyze this name:
+- Name: {text}
+- Script-detected language: {language}
 
-    Return EXACTLY these 8 lines, one per line, no markdown, no extra text:
-    LANGUAGE: <inferred language>
-    DISPLAY_NAME: <same spelling, only add tonal marks where needed>
-    IPA: <IPA pronunciation>
-    MACQUARIE: <Australian-friendly hyphenated pronunciation with CAPS stress>
-    GUIDANCE: <brief practical guidance>
-    ROMANIZATION: <pinyin|Wade-Giles|none>
-    TONE_MARKS_ADDED: <true|false>
-    CULTURAL_NOTES: <brief one sentence>
-    """
-
-        try:
-            response = await asyncio.wait_for(
-                self.client.aio.models.generate_content(
-                    model=self.model,
-                    contents=prompt,
-                    config=genai.types.GenerateContentConfig(
-                        max_output_tokens=320,
-                        temperature=0.2,
-                    ),
-                ),
-                timeout=self.request_timeout_seconds,
-            )
-
-            response_text = getattr(response, "text", None)
-            if not response_text:
-                raise Exception("Empty response from Gemini API")
-            response_text = response_text.strip()
-
-            def extract_value(key: str) -> str:
-                pattern = rf'^{re.escape(key)}\s*:\s*(.+)$'
-                match = re.search(pattern, response_text, re.MULTILINE)
-                return match.group(1).strip() if match else ''
-
-            inferred_language = extract_value('LANGUAGE')
-            display_name = extract_value('DISPLAY_NAME')
-            ipa = extract_value('IPA')
-            macquarie = extract_value('MACQUARIE')
-            guidance = extract_value('GUIDANCE')
-            romanization = extract_value('ROMANIZATION')
-            tone_marks = extract_value('TONE_MARKS_ADDED').lower()
-            cultural_notes = extract_value('CULTURAL_NOTES')
-
-            if not ipa and not macquarie and not guidance:
-                logger.error(f"Could not parse Gemini tagged response: {response_text[:400]}")
-
-                retry_prompt = f"""Give pronunciation for this name: {text}
-Return exactly 3 lines, no extra text:
-IPA: <ipa>
-MACQUARIE: <australian-friendly pronunciation>
-GUIDANCE: <very brief tip>
+Rules:
+1. Preserve exact spelling in name_with_diacritics except tonal marks for tonal languages.
+2. Provide full IPA.
+3. Provide Macquarie-style respelling (speakable by Australian English speakers).
+4. guidance must be practical and short.
+5. If uncertain, choose best-likely pronunciation and include note in cultural_notes.
+Return only JSON matching the schema.
 """
 
-                retry_response = await asyncio.wait_for(
+        attempts = 2
+        last_error = None
+
+        for attempt in range(1, attempts + 1):
+            try:
+                response = await asyncio.wait_for(
                     self.client.aio.models.generate_content(
                         model=self.model,
-                        contents=retry_prompt,
+                        contents=prompt,
                         config=genai.types.GenerateContentConfig(
-                            max_output_tokens=180,
-                            temperature=0.1,
+                            response_mime_type="application/json",
+                            response_json_schema=PronunciationOutput.model_json_schema(),
+                            max_output_tokens=500,
                         ),
                     ),
-                    timeout=min(self.request_timeout_seconds, 6),
+                    timeout=self.request_timeout_seconds,
                 )
 
-                retry_text = (getattr(retry_response, "text", "") or "").strip()
-                if retry_text:
-                    ipa = extract_value('IPA') if ipa else ''
-                    macquarie = extract_value('MACQUARIE') if macquarie else ''
-                    guidance = extract_value('GUIDANCE') if guidance else ''
+                response_text = (getattr(response, "text", "") or "").strip()
+                if not response_text:
+                    raise ValueError("Empty response from Gemini API")
 
-                    if not ipa:
-                        ipa_match = re.search(r'^IPA\s*:\s*(.+)$', retry_text, re.MULTILINE)
-                        ipa = ipa_match.group(1).strip() if ipa_match else ''
-                    if not macquarie:
-                        mac_match = re.search(r'^MACQUARIE\s*:\s*(.+)$', retry_text, re.MULTILINE)
-                        macquarie = mac_match.group(1).strip() if mac_match else ''
-                    if not guidance:
-                        guide_match = re.search(r'^GUIDANCE\s*:\s*(.+)$', retry_text, re.MULTILINE)
-                        guidance = guide_match.group(1).strip() if guide_match else ''
+                parsed = PronunciationOutput.model_validate_json(response_text)
+                normalized = self._normalize_output(parsed, text, language)
 
-                if not ipa and not macquarie and not guidance:
-                    return self._simplified_analysis(text, language)
+                if self._is_quality_output(normalized):
+                    return normalized
 
-            return {
-                'inferred_language': inferred_language,
-                'name_with_diacritics': display_name,
-                'romanization_system': None if romanization in ('', 'none', 'null') else romanization,
-                'ipa': ipa,
-                'macquarie': macquarie,
-                'guidance': guidance,
-                'tone_marks_added': tone_marks == 'true',
-                'ambiguity': None,
-                'cultural_notes': cultural_notes
-            }
+                last_error = ValueError("Schema output passed, but quality gate failed")
+                logger.warning(f"Gemini output quality gate failed (attempt {attempt}/{attempts})")
 
-        except asyncio.TimeoutError:
-            raise Exception(f"Gemini API timeout after {self.request_timeout_seconds:.1f}s")
-        except Exception as e:
-            raise Exception(f"Gemini API error: {str(e)}")
+            except (ValidationError, ValueError) as e:
+                last_error = e
+                logger.warning(f"Gemini structured parse failed (attempt {attempt}/{attempts}): {e}")
+            except asyncio.TimeoutError as e:
+                last_error = e
+                logger.warning(f"Gemini timeout (attempt {attempt}/{attempts})")
+            except Exception as e:
+                last_error = e
+                logger.warning(f"Gemini call failed (attempt {attempt}/{attempts}): {e}")
+
+        logger.error(f"Gemini analysis failed after retries: {last_error}")
+        return self._fallback_from_name(text, language)
 
     def _simplified_analysis(self, text: str, language: str) -> Dict[str, Any]:
         """
@@ -206,5 +170,41 @@ GUIDANCE: <very brief tip>
             'ipa': f"[Add API key for accurate IPA]",
             'macquarie': f"[Add API key for Macquarie notation]",
             'guidance': f"Set GEMINI_API_KEY in backend/.env for accurate pronunciation analysis. Run: ./add-api-key.sh"
+        }
+
+    def _normalize_output(self, parsed: PronunciationOutput, text: str, language: str) -> Dict[str, Any]:
+        inferred_language = (parsed.inferred_language or '').strip() or language
+        name_with_diacritics = (parsed.name_with_diacritics or '').strip() or text
+        romanization_system = (parsed.romanization_system or '').strip() or None
+        if romanization_system and romanization_system.lower() in ('none', 'null', 'n/a'):
+            romanization_system = None
+
+        return {
+            'inferred_language': inferred_language,
+            'name_with_diacritics': name_with_diacritics,
+            'romanization_system': romanization_system,
+            'ipa': (parsed.ipa or '').strip(),
+            'macquarie': (parsed.macquarie or '').strip(),
+            'guidance': (parsed.guidance or '').strip(),
+            'tone_marks_added': bool(parsed.tone_marks_added),
+            'ambiguity': parsed.ambiguity,
+            'cultural_notes': (parsed.cultural_notes or '').strip(),
+        }
+
+    def _is_quality_output(self, output: Dict[str, Any]) -> bool:
+        return bool(output.get('ipa') and output.get('macquarie') and output.get('guidance'))
+
+    def _fallback_from_name(self, text: str, language: str) -> Dict[str, Any]:
+        simplified = "-".join(part for part in text.split() if part).lower()
+        return {
+            'inferred_language': language,
+            'name_with_diacritics': text,
+            'romanization_system': None,
+            'ipa': f"/{simplified}/" if simplified else '/na/',
+            'macquarie': text,
+            'guidance': "Pronounce slowly by syllable and confirm with the person if possible.",
+            'tone_marks_added': False,
+            'ambiguity': None,
+            'cultural_notes': "Automated fallback output used due to temporary model formatting failure."
         }
 
