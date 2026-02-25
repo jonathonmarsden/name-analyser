@@ -66,7 +66,7 @@ class AnalysisService:
         self.timeout_seconds = float(os.getenv("LLM_TIMEOUT_SECONDS", "4"))
         self.max_retries = int(os.getenv("LLM_RETRIES", "1"))
         api_key = os.getenv("OPENAI_API_KEY")
-        self.client = AsyncOpenAI(api_key=api_key) if api_key else None
+        self.client = AsyncOpenAI(api_key=api_key, max_retries=0) if api_key else None
 
     async def analyse(self, name: str) -> AnalysisOutput:
         language_hint, script_conf = self.language_detector.detect(name)
@@ -110,7 +110,7 @@ class AnalysisService:
                     {"role": "user", "content": user_prompt}
                 ],
                 temperature=0.2,
-                max_output_tokens=450,
+                max_output_tokens=320,
                 timeout=self.timeout_seconds
             )
 
