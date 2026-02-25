@@ -312,13 +312,7 @@ async def analyse_name(request: Request, name_request: NameAnalysisRequest):
 
         logger.info(f"Successfully analyzed: {name[:50]} -> {inferred_language}")
 
-        cultural_notes = pronunciation.get('cultural_notes', '')
-        fallback_used = 'fallback' in cultural_notes.lower()
-        confidence = script_confidence
-        if pronunciation.get('inferred_language') and not fallback_used:
-            confidence = 1.0
-        elif fallback_used:
-            confidence = min(script_confidence, 0.5)
+        cultural_notes = analysis.cultural_notes
 
         return NameAnalysisResponse(
             name=display_name,  # Show name with diacritics
