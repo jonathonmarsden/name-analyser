@@ -90,13 +90,16 @@ class AnalysisService:
 
     async def _call_llm(self, model: str, name: str, language_hint: str) -> Optional[Dict[str, Any]]:
         system_prompt = (
-            "You are a professional linguist. Return valid JSON only, matching the schema. "
+            "You are a professional linguist. Return valid JSON only. "
             "No markdown, no extra text."
         )
         user_prompt = (
             f"Name: {name}\n"
             f"Script hint: {language_hint}\n\n"
-            "Return JSON with language, ipa, macquarie, pronunciation_guidance, confidence, ambiguity, cultural_notes."
+            "Return JSON with these keys only:"
+            " language, ipa, macquarie, pronunciation_guidance, confidence, ambiguity, cultural_notes."
+            " confidence is a number between 0 and 1."
+            " ambiguity is null or an object with a note field."
         )
 
         try:
@@ -106,10 +109,6 @@ class AnalysisService:
                     {"role": "system", "content": system_prompt},
                     {"role": "user", "content": user_prompt}
                 ],
-                response_format={
-                    "type": "json_schema",
-                    "json_schema": LLM_SCHEMA
-                },
                 temperature=0.2,
                 max_output_tokens=450,
                 timeout=self.timeout_seconds
