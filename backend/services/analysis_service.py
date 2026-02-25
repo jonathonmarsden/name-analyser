@@ -7,7 +7,9 @@ import os
 from dataclasses import dataclass
 from typing import Any, Dict, Optional, Tuple
 
+import logging
 from openai import AsyncOpenAI
+logger = logging.getLogger(__name__)
 
 from .language_detector import LanguageDetector
 
@@ -82,7 +84,7 @@ class AnalysisService:
                         output.quality = "high"
                         output.source = "llm-primary" if model == self.primary_model else "llm-secondary"
                         return output
-                # Continue retry loop if result is empty or fails quality gate
+                logger.warning("LLM output failed quality gate for %s (attempt %s)", model, attempt + 1)
 
         return self._fallback_output(name, language_hint, script_conf, "Model output invalid after retries")
 
@@ -124,7 +126,8 @@ class AnalysisService:
 
             payload = json.loads(text)
             return payload
-        except Exception:
+        except Exception as exc:
+            logger.warning("LLM call failed for %s: %s", model, exc)
             return None
 
     def _normalize_output(self, name: str, language_hint: str, payload: Dict[str, Any]) -> AnalysisOutput:
