@@ -196,7 +196,7 @@ async def health_check():
 
         # Check 2: Test API connectivity
         client = genai.Client(api_key=api_key)
-        model = os.getenv("GEMINI_MODEL", "gemini-3.1-pro-preview")
+        model = os.getenv("GEMINI_MODEL", "gemini-2.5-pro")
         model_name = model if model.startswith("models/") else f"models/{model}"
         response = await asyncio.wait_for(
             client.aio.models.get(model=model_name),

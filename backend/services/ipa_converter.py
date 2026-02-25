@@ -32,7 +32,9 @@ class IPAConverter:
     def __init__(self):
         """Initialise pronunciation converter with Gemini API client."""
         self.client = None
-        self.model = os.getenv('GEMINI_MODEL', 'gemini-3.1-pro-preview')
+        self.model = os.getenv('GEMINI_MODEL', 'gemini-2.5-pro')
+        fallback_models_env = os.getenv('GEMINI_MODEL_FALLBACKS', 'gemini-2.5-flash,gemini-2.5-flash-lite')
+        self.fallback_models = [m.strip() for m in fallback_models_env.split(',') if m.strip()]
         self.request_timeout_seconds = float(os.getenv('GEMINI_TIMEOUT_SECONDS', '10'))
         api_key = os.getenv('GEMINI_API_KEY')
 
@@ -114,47 +116,49 @@ Return only JSON matching the schema.
         attempts = 2
         last_error = None
 
-        for attempt in range(1, attempts + 1):
-            try:
-                response = await asyncio.wait_for(
-                    self.client.aio.models.generate_content(
-                        model=self.model,
-                        contents=prompt,
-                        config=genai.types.GenerateContentConfig(
-                            response_mime_type="application/json",
-                            response_schema=PronunciationOutput,
-                            max_output_tokens=500,
+        for model in self._candidate_models():
+            for attempt in range(1, attempts + 1):
+                try:
+                    response = await asyncio.wait_for(
+                        self.client.aio.models.generate_content(
+                            model=model,
+                            contents=prompt,
+                            config=genai.types.GenerateContentConfig(
+                                response_mime_type="application/json",
+                                response_schema=PronunciationOutput,
+                                max_output_tokens=500,
+                            ),
                         ),
-                    ),
-                    timeout=self.request_timeout_seconds,
-                )
+                        timeout=self.request_timeout_seconds,
+                    )
 
-                response_text = (getattr(response, "text", "") or "").strip()
-                if not response_text:
-                    raise ValueError("Empty response from Gemini API")
+                    response_text = (getattr(response, "text", "") or "").strip()
+                    if not response_text:
+                        raise ValueError("Empty response from Gemini API")
 
-                parsed = PronunciationOutput.model_validate_json(response_text)
-                normalized = self._normalize_output(parsed, text, language)
+                    parsed = PronunciationOutput.model_validate_json(response_text)
+                    normalized = self._normalize_output(parsed, text, language)
+                    normalized = self._complete_output(normalized, text)
 
-                if self._is_quality_output(normalized):
-                    return normalized
+                    if self._is_quality_output(normalized):
+                        return normalized
 
-                last_error = ValueError("Schema output passed, but quality gate failed")
-                logger.warning(f"Gemini output quality gate failed (attempt {attempt}/{attempts})")
+                    last_error = ValueError("Schema output passed, but quality gate failed")
+                    logger.warning(f"Gemini output quality gate failed for {model} (attempt {attempt}/{attempts})")
 
-            except (ValidationError, ValueError) as e:
-                last_error = e
-                logger.warning(f"Gemini structured parse failed (attempt {attempt}/{attempts}): {e}")
-            except asyncio.TimeoutError as e:
-                last_error = e
-                logger.warning(f"Gemini timeout (attempt {attempt}/{attempts})")
-            except Exception as e:
-                last_error = e
-                logger.warning(f"Gemini call failed (attempt {attempt}/{attempts}): {e}")
+                except (ValidationError, ValueError) as e:
+                    last_error = e
+                    logger.warning(f"Gemini structured parse failed for {model} (attempt {attempt}/{attempts}): {e}")
+                except asyncio.TimeoutError as e:
+                    last_error = e
+                    logger.warning(f"Gemini timeout for {model} (attempt {attempt}/{attempts})")
+                except Exception as e:
+                    last_error = e
+                    logger.warning(f"Gemini call failed for {model} (attempt {attempt}/{attempts}): {e}")
 
-        minimal = await self._analyse_with_minimal_prompt(text, language)
-        if minimal:
-            return minimal
+            minimal = await self._analyse_with_minimal_prompt(text, language, model)
+            if minimal:
+                return self._complete_output(minimal, text)
 
         logger.error(f"Gemini analysis failed after retries: {last_error}")
         return self._fallback_from_name(text, language)
@@ -198,7 +202,7 @@ Return only JSON matching the schema.
     def _is_quality_output(self, output: Dict[str, Any]) -> bool:
         return bool(output.get('ipa') and output.get('macquarie') and output.get('guidance'))
 
-    async def _analyse_with_minimal_prompt(self, text: str, language: str) -> Optional[Dict[str, Any]]:
+    async def _analyse_with_minimal_prompt(self, text: str, language: str, model: str) -> Optional[Dict[str, Any]]:
         prompt = f"""Give pronunciation fields for this name.
 Name: {text}
 Language hint: {language}
@@ -214,7 +218,7 @@ GUIDANCE: <short guidance>
         try:
             response = await asyncio.wait_for(
                 self.client.aio.models.generate_content(
-                    model=self.model,
+                    model=model,
                     contents=prompt,
                     config=genai.types.GenerateContentConfig(
                         max_output_tokens=220,
@@ -254,6 +258,24 @@ GUIDANCE: <short guidance>
             }
         except Exception:
             return None
+
+    def _candidate_models(self) -> list[str]:
+        ordered = [self.model, *self.fallback_models]
+        seen = set()
+        unique_models = []
+        for model in ordered:
+            if model and model not in seen:
+                seen.add(model)
+                unique_models.append(model)
+        return unique_models
+
+    def _complete_output(self, output: Dict[str, Any], original_name: str) -> Dict[str, Any]:
+        completed = dict(output)
+        if not completed.get('macquarie'):
+            completed['macquarie'] = completed.get('name_with_diacritics') or original_name
+        if not completed.get('guidance'):
+            completed['guidance'] = "Pronounce slowly by syllable and confirm preferred pronunciation with the person."
+        return completed
 
     def _fallback_from_name(self, text: str, language: str) -> Dict[str, Any]:
         simplified = "-".join(part for part in text.split() if part).lower()
