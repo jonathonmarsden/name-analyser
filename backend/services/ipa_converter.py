@@ -7,7 +7,6 @@ Railway deployment ready.
 from typing import Optional, Dict, Any
 import asyncio
 import os
-import json
 import logging
 import re
 from google import genai
@@ -87,32 +86,20 @@ class IPAConverter:
         """
         prompt = f"""You are an expert linguist helping ceremony readers pronounce names respectfully.
 
-Analyze this name:
-- Name: {text}
-- Script-detected language: {language}
+    Analyze this name:
+    - Name: {text}
+    - Script-detected language: {language}
 
-Rules:
-1. Preserve exact spelling in `name_with_diacritics` except adding tone marks for tonal languages.
-2. Infer likely linguistic/cultural origin from name patterns.
-3. Provide accurate IPA.
-4. Provide Australian-English-friendly Macquarie style respelling with stress in CAPS.
-5. Keep guidance practical and brief.
-6. Flag ambiguity only when genuinely plausible.
-
-Respond in JSON format:
-{{
-  "inferred_language": "Chinese (Mandarin)|Vietnamese|Italian|Mixed (Spanish/English)|etc",
-  "name_with_diacritics": "Name with ONLY tonal marks added (preserve exact spelling otherwise)",
-  "romanization_system": "pinyin|Wade-Giles|null",
-  "ipa": "IPA with tone marks and stress",
-  "macquarie": "Macquarie phonetic respelling",
-  "guidance": "Practical pronunciation tip emphasizing tones/stress",
-  "tone_marks_added": true|false,
-  "ambiguity": null|{{"note": "Could be X or Y. Pronunciation shown assumes X based on [reason]."}},
-  "cultural_notes": "Brief 1 sentence etymology or origin note"
-}}
-
-Return ONLY the JSON, no other text."""
+    Return EXACTLY these 8 lines, one per line, no markdown, no extra text:
+    LANGUAGE: <inferred language>
+    DISPLAY_NAME: <same spelling, only add tonal marks where needed>
+    IPA: <IPA pronunciation>
+    MACQUARIE: <Australian-friendly hyphenated pronunciation with CAPS stress>
+    GUIDANCE: <brief practical guidance>
+    ROMANIZATION: <pinyin|Wade-Giles|none>
+    TONE_MARKS_ADDED: <true|false>
+    CULTURAL_NOTES: <brief one sentence>
+    """
 
         try:
             response = await asyncio.wait_for(
@@ -120,8 +107,7 @@ Return ONLY the JSON, no other text."""
                     model=self.model,
                     contents=prompt,
                     config=genai.types.GenerateContentConfig(
-                        response_mime_type="application/json",
-                        max_output_tokens=900,
+                        max_output_tokens=320,
                         temperature=0.2,
                     ),
                 ),
@@ -133,35 +119,35 @@ Return ONLY the JSON, no other text."""
                 raise Exception("Empty response from Gemini API")
             response_text = response_text.strip()
 
-            if response_text.startswith('```'):
-                lines = response_text.split('\n')
-                if lines[0].startswith('```'):
-                    lines = lines[1:]
-                if lines and lines[-1].strip() == '```':
-                    lines = lines[:-1]
-                response_text = '\n'.join(lines).strip()
+            def extract_value(key: str) -> str:
+                pattern = rf'^{re.escape(key)}\s*:\s*(.+)$'
+                match = re.search(pattern, response_text, re.MULTILINE)
+                return match.group(1).strip() if match else ''
 
-            try:
-                result = json.loads(response_text)
-                return {
-                    'inferred_language': result.get('inferred_language', ''),
-                    'name_with_diacritics': result.get('name_with_diacritics', ''),
-                    'romanization_system': result.get('romanization_system'),
-                    'ipa': result.get('ipa', ''),
-                    'macquarie': result.get('macquarie', ''),
-                    'guidance': result.get('guidance', ''),
-                    'tone_marks_added': result.get('tone_marks_added', False),
-                    'ambiguity': result.get('ambiguity'),
-                    'cultural_notes': result.get('cultural_notes', '')
-                }
-            except json.JSONDecodeError:
-                logger.error(f"Could not parse Gemini response as JSON: {response_text[:400]}")
+            inferred_language = extract_value('LANGUAGE')
+            display_name = extract_value('DISPLAY_NAME')
+            ipa = extract_value('IPA')
+            macquarie = extract_value('MACQUARIE')
+            guidance = extract_value('GUIDANCE')
+            romanization = extract_value('ROMANIZATION')
+            tone_marks = extract_value('TONE_MARKS_ADDED').lower()
+            cultural_notes = extract_value('CULTURAL_NOTES')
 
-                extracted = self._extract_fields_from_text(response_text)
-                if extracted:
-                    return extracted
-
+            if not ipa and not macquarie and not guidance:
+                logger.error(f"Could not parse Gemini tagged response: {response_text[:400]}")
                 return self._simplified_analysis(text, language)
+
+            return {
+                'inferred_language': inferred_language,
+                'name_with_diacritics': display_name,
+                'romanization_system': None if romanization in ('', 'none', 'null') else romanization,
+                'ipa': ipa,
+                'macquarie': macquarie,
+                'guidance': guidance,
+                'tone_marks_added': tone_marks == 'true',
+                'ambiguity': None,
+                'cultural_notes': cultural_notes
+            }
 
         except asyncio.TimeoutError:
             raise Exception(f"Gemini API timeout after {self.request_timeout_seconds:.1f}s")
@@ -185,37 +171,3 @@ Return ONLY the JSON, no other text."""
             'guidance': f"Set GEMINI_API_KEY in backend/.env for accurate pronunciation analysis. Run: ./add-api-key.sh"
         }
 
-    def _extract_fields_from_text(self, text: str) -> Optional[Dict[str, Any]]:
-        """Best-effort extraction when model output is malformed JSON."""
-
-        def extract_string(key: str) -> Optional[str]:
-            pattern = rf'"{re.escape(key)}"\s*:\s*"([^"\\]*(?:\\.[^"\\]*)*)"'
-            match = re.search(pattern, text, re.DOTALL)
-            if not match:
-                return None
-            value = match.group(1)
-            return bytes(value, "utf-8").decode("unicode_escape")
-
-        def extract_bool(key: str) -> bool:
-            pattern = rf'"{re.escape(key)}"\s*:\s*(true|false)'
-            match = re.search(pattern, text, re.IGNORECASE)
-            if not match:
-                return False
-            return match.group(1).lower() == 'true'
-
-        extracted = {
-            'inferred_language': extract_string('inferred_language') or '',
-            'name_with_diacritics': extract_string('name_with_diacritics') or '',
-            'romanization_system': extract_string('romanization_system'),
-            'ipa': extract_string('ipa') or '',
-            'macquarie': extract_string('macquarie') or '',
-            'guidance': extract_string('guidance') or '',
-            'tone_marks_added': extract_bool('tone_marks_added'),
-            'ambiguity': None,
-            'cultural_notes': extract_string('cultural_notes') or ''
-        }
-
-        if extracted['ipa'] or extracted['macquarie'] or extracted['guidance']:
-            return extracted
-
-        return None
